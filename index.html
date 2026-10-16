@@ -1,0 +1,2092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Group Inventory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Lora:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<!-- 5e item catalogue (optional). Keep items-data.js in the same folder. -->
+<script src="items-data.js"></script>
+<style>
+:root{
+  --bg:#ece0c5; --bg2:#e2d2b0; --panel:#f7efdc; --panel2:#efe3c8; --ink:#2b2118; --muted:#6e5c46;
+  --gold:#9c7020; --gold2:#c9a14a; --line:#ccb88e; --line2:#b89e6c; --accent:#7d2e1f; --magic:#4f3a9a;
+  --good:#3d6b35; --warn:#a5541b; --bad:#9b2c2c; --shadow:0 2px 10px rgba(60,40,10,.15);
+  --r-common:#6b6b6b; --r-uncommon:#2f7d32; --r-rare:#2457a6; --r-veryrare:#7b3fb0; --r-legendary:#c26a12; --r-artifact:#a32020;
+}
+:root[data-theme="dark"]{
+  --bg:#17120e; --bg2:#1f1813; --panel:#2a211a; --panel2:#33281f; --ink:#ece0c8; --muted:#a8977c;
+  --gold:#d6ab52; --gold2:#e6c477; --line:#4a3b2c; --line2:#6a5440; --accent:#d26a4f; --magic:#b0a0ff;
+  --good:#7fbf6a; --warn:#e09a55; --bad:#e06a6a; --shadow:0 2px 12px rgba(0,0,0,.5);
+  --r-common:#b0b0b0; --r-uncommon:#6fcf74; --r-rare:#6fa4ff; --r-veryrare:#c08cff; --r-legendary:#ffab4a; --r-artifact:#ff6b6b;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.45 Lora,Georgia,serif;
+  background-image:radial-gradient(ellipse at top,rgba(255,255,255,.18),transparent 60%);min-height:100vh}
+h1,h2,h3,h4,.cinzel{font-family:Cinzel,serif;letter-spacing:.03em;margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+input,select,textarea{background:var(--panel);border:1px solid var(--line2);border-radius:5px;padding:5px 7px;min-width:0}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--gold2);outline-offset:0}
+input[type=checkbox]{accent-color:var(--gold)}
+textarea{width:100%;resize:vertical}
+button{cursor:pointer;background:var(--panel2);border:1px solid var(--line2);border-radius:5px;padding:5px 11px}
+button:hover{border-color:var(--gold)}
+button.gold{background:linear-gradient(#c9a14a,#9c7020);color:#fff8e6;border-color:#7a5612;font-family:Cinzel,serif;font-weight:700}
+button.gold:hover{filter:brightness(1.08)}
+button.ghost{background:transparent;border-color:transparent}
+button.ghost:hover{border-color:var(--line2)}
+button.danger{color:var(--bad)}
+button.small{padding:2px 8px;font-size:13px}
+.muted{color:var(--muted)} .small{font-size:13px} .right{text-align:right} .nowrap{white-space:nowrap}
+.hidden{display:none!important}
+
+/* header */
+header{position:sticky;top:0;z-index:20;background:var(--bg2)}
+:root{--gutter:64px;--drawer-w:min(680px,100vw)}
+@media (max-width:760px){:root{--gutter:10px}}
+.hrow{display:flex;align-items:center;gap:12px;padding:8px var(--gutter);flex-wrap:wrap}
+.brand h1{font-size:20px;color:var(--gold)} .brand .camp{font-size:13px;color:var(--muted)}
+.spacer{flex:1}
+.cloud{display:flex;align-items:center;gap:6px;font-size:13px}
+.cloud button{font-size:18px;line-height:1;padding:3px 9px;color:var(--gold)}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block}
+.dot.ok{background:var(--good)} .dot.busy{background:var(--gold2)} .dot.err{background:var(--bad)} .dot.ro{background:var(--magic)}
+/* tabs: flat cards with slightly rounded tops; the active one takes the page colour and joins the content below */
+:root{--tab:#d9c7a0;--tab-ink:#6e5c46}
+:root[data-theme="dark"]{--tab:#2b221b;--tab-ink:#9d8c72}
+nav.tabs{display:flex;gap:4px;padding:10px var(--gutter) 0;overflow-x:auto;overflow-y:hidden;align-items:flex-end;box-shadow:inset 0 -1px 0 var(--line2);scrollbar-width:thin}
+nav.tabs button{display:flex;align-items:center;gap:7px;white-space:nowrap;font-family:Lora,Georgia,serif;font-size:14px;font-weight:600;
+  color:var(--tab-ink);background:var(--tab);border:1px solid rgba(0,0,0,.06);border-bottom:none;border-radius:4px 4px 0 0;
+  padding:9px 16px 8px;margin-bottom:1px;box-shadow:0 1px 3px rgba(40,25,5,.22);transition:background .12s,color .12s}
+nav.tabs button .ti{font-size:15px;opacity:.75;line-height:1}
+nav.tabs button:hover{color:var(--ink);filter:brightness(1.04)}
+nav.tabs button.on{background:var(--bg);color:var(--gold);padding:12px 18px 11px;margin-bottom:0;position:relative;z-index:1;
+  border-color:var(--line2);box-shadow:0 -1px 4px rgba(40,25,5,.12)}
+nav.tabs button.on .ti{opacity:1}
+/* settings sub-tabs: same shape and colours as the main tabs */
+nav.tabs.subtabs{padding:4px 0 0;margin:0 0 14px}
+/* tag chips on the item card */
+.tagbox{display:flex;flex-wrap:wrap;gap:5px;align-items:center;color:var(--ink)}
+.tchip{display:inline-flex;align-items:center;gap:2px;background:var(--panel2);border:1px solid var(--line2);border-radius:12px;padding:1px 4px 1px 9px;font-size:13px}
+.tchip button{padding:0 4px;font-size:11px;line-height:16px;border:none;color:var(--muted)}
+.tchip button:hover{color:var(--bad)}
+.tagbox select{font-size:13px;padding:3px 6px;max-width:170px}
+/* types & tags manager */
+.vlistbox{display:flex;flex-direction:column;gap:4px;max-height:60vh;overflow:auto;padding-right:4px}
+.vrow{display:grid;grid-template-columns:1fr 80px 32px;gap:8px;align-items:center}
+.vrow input{padding:4px 7px}
+.vcount{font-size:13px;cursor:pointer;text-decoration:underline dotted;text-align:right}
+.vcount:hover{color:var(--gold)}
+/* scroll to top / bottom */
+#scrollNav{position:fixed;right:14px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:8px;z-index:30;transition:right .2s ease}
+#scrollNav button{width:36px;height:36px;border-radius:50%;padding:0;font-size:15px;line-height:1;color:#fff8e6;border:1px solid #7a5612;
+  background:linear-gradient(#c9a14a,#9c7020);box-shadow:var(--shadow);opacity:.85}
+#scrollNav button:hover{opacity:1}
+#scrollNav button.dim{opacity:.3}
+body.drawer-open #scrollNav{right:calc(var(--drawer-w) + 14px)}
+@media (max-width:760px){body.drawer-open #scrollNav{display:none}}
+main{padding:14px var(--gutter) 60px}
+
+/* panels */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);padding:12px 14px;margin-bottom:14px}
+.panel>h2,.panel>h3{color:var(--gold);font-size:16px;margin-bottom:8px;border-bottom:1px solid var(--line);padding-bottom:4px}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.toolbar label{display:flex;align-items:center;gap:5px;font-size:13px}
+.toolbar input[type=search]{width:220px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.chip{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:4px 12px;font-size:13px;cursor:pointer;display:flex;gap:8px;align-items:center}
+.chip:hover{border-color:var(--gold)} .chip b{font-family:Cinzel,serif}
+.chip .over{color:var(--bad);font-weight:600}
+.pdot{width:10px;height:10px;border-radius:50%;display:inline-block;flex:none}
+
+/* table */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{font-family:Cinzel,serif;font-size:12px;text-align:left;padding:7px 8px;background:var(--panel2);border-bottom:2px solid var(--line2);white-space:nowrap;cursor:pointer;user-select:none;position:sticky;top:0}
+th.nosort{cursor:default}
+th .arr{color:var(--gold)}
+td{padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+tbody tr.item:hover{background:rgba(201,161,74,.12);cursor:pointer}
+tr.sel{background:rgba(201,161,74,.2)!important}
+tr.grp td{background:var(--bg2);font-family:Cinzel,serif;font-weight:700;color:var(--gold);font-size:13px}
+td.num{text-align:right;white-space:nowrap}
+.iname{font-weight:600}
+.badge{display:inline-block;font-size:11px;border:1px solid currentColor;border-radius:4px;padding:0 4px;margin-left:4px;line-height:16px;vertical-align:1px;white-space:nowrap}
+.b-magic{color:var(--magic)} .b-att{color:var(--accent)} .b-eq{color:var(--good)} .b-unid{color:var(--warn)}
+.rar-Common{color:var(--r-common)} .rar-Uncommon{color:var(--r-uncommon)} .rar-Rare{color:var(--r-rare)}
+.rar-Very-Rare{color:var(--r-veryrare)} .rar-Legendary{color:var(--r-legendary)} .rar-Artifact{color:var(--r-artifact)}
+.empty{padding:30px;text-align:center;color:var(--muted)}
+tfoot td{font-weight:600;background:var(--panel2)}
+.bulk{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 10px;margin:8px 0;background:var(--panel2);border:1px solid var(--gold2);border-radius:6px;font-size:14px}
+
+/* drawer */
+.drawer{position:fixed;top:0;right:0;bottom:0;width:var(--drawer-w);background:var(--panel);border-left:2px solid var(--gold2);box-shadow:-4px 0 20px rgba(0,0,0,.25);z-index:40;overflow-y:auto;transform:translateX(105%);transition:transform .2s ease;padding:0 16px 30px}
+.drawer.open{transform:none}
+.dr-head{position:sticky;top:0;background:var(--panel);padding:12px 0 8px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px;z-index:2}
+.dr-head h3{flex:1;color:var(--gold);font-size:17px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px 10px;margin-top:10px}
+.fgrid .full{grid-column:1/-1}
+.f{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--muted)}
+.f>input,.f>select,.f>textarea,.f>.inl{font-size:14px;color:var(--ink)}
+.f>select,.f>input:not([type=checkbox]):not([type=color]){width:100%}
+.fgrid>*{min-width:0}
+.inl.coins>label{flex:1;min-width:0} .inl.coins input{width:100%}
+.inl{display:flex;gap:5px} .inl>input{flex:1;width:0}
+.checks{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:14px}
+.checks label{display:flex;align-items:center;gap:5px}
+.desc{white-space:pre-wrap;background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:8px 10px;font-size:14px;max-height:320px;overflow:auto;color:var(--ink)}
+.sect{margin-top:14px;padding-top:8px;border-top:1px dashed var(--line2)}
+.sect h4{font-size:13px;color:var(--gold);margin-bottom:6px}
+.catres{border:1px solid var(--line);border-radius:6px;max-height:260px;overflow:auto;margin-top:6px;background:var(--panel2)}
+.catres div{padding:5px 8px;border-bottom:1px solid var(--line);cursor:pointer;font-size:14px}
+.catres div:hover{background:rgba(201,161,74,.18)}
+.warn{color:var(--warn);font-size:13px}
+.view{padding-top:8px}
+.vsub{font-style:italic;color:var(--muted);margin-bottom:4px}
+.vlist{display:grid;grid-template-columns:max-content 1fr;gap:5px 14px;margin:10px 0 0;font-size:14px}
+.vlist dt{font-family:Cinzel,serif;font-size:12px;color:var(--muted);padding-top:2px}
+.vlist dd{margin:0}
+.vcont{margin:4px 0 8px;padding-left:20px;font-size:14px}
+.vcont a{color:var(--ink);text-decoration:underline dotted;cursor:pointer}
+.vcont a:hover{color:var(--gold)}
+.confirm{color:var(--bad);font-weight:600}
+
+/* cards */
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;box-shadow:var(--shadow);cursor:pointer;display:flex;flex-direction:column;gap:4px;border-top:4px solid var(--gold2)}
+.card:hover{border-color:var(--gold)}
+.card h3{font-size:15px;display:flex;gap:6px;align-items:center}
+.card .ico{color:var(--gold);font-size:17px}
+.bar{height:7px;background:var(--bg2);border-radius:4px;overflow:hidden;border:1px solid var(--line)}
+.bar i{display:block;height:100%;background:var(--good)}
+.bar i.hi{background:var(--warn)} .bar i.over{background:var(--bad)}
+.crumbs{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px;font-family:Cinzel,serif}
+.crumbs a{color:var(--gold);cursor:pointer;text-decoration:underline}
+.stats{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:14px;margin:6px 0}
+.stats b{font-family:Cinzel,serif;font-size:12px;color:var(--muted);font-weight:700;margin-right:4px}
+
+/* settings */
+.sgrid{overflow-x:auto}
+.srow{display:grid;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
+.srow>input,.srow>select{width:100%;min-width:0}
+.srow.shead{font-size:12px;color:var(--muted);padding:2px 0 4px;border-bottom:1px solid var(--line2)}
+.srow .c{display:flex;justify-content:center}
+.srow input[type=color]{padding:0;height:31px;width:44px}
+.srow.pl{grid-template-columns:220px 180px 70px 52px minmax(160px,1fr) 104px;min-width:860px}
+.srow.lo{grid-template-columns:200px 150px 220px 90px 90px 80px minmax(150px,1fr) 250px;min-width:1320px}
+.rowbtns{display:flex;gap:4px;justify-content:flex-end;align-items:center}
+.itembadge,.rowbtns [data-set=lItem]{min-width:62px;text-align:center;font-size:12px;white-space:nowrap}
+.rowbtns button.confirming{min-width:62px}
+.itembadge{color:var(--gold);border:1px dashed var(--gold2);background:transparent}
+.itembadge:hover{border-style:solid}
+.srow .f input[type=color]{padding:0;height:31px;width:44px}
+.settings-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+.help{font-size:13px;color:var(--muted);margin:4px 0 8px}
+
+/* currency */
+.coins input{width:78px;text-align:right}
+.coin-h{font-family:Cinzel,serif}
+.c-pp{color:#7f8fa6} .c-gp{color:var(--gold)} .c-ep{color:#5f8f88} .c-sp{color:#8a8a8a} .c-cp{color:#a2582c}
+.ledger{max-height:340px;overflow:auto;font-size:13px}
+.ledger div{padding:4px 0;border-bottom:1px dotted var(--line)}
+
+/* log */
+.lgt{font-family:Cinzel,serif;font-size:12px;font-weight:700}
+.lg-added{color:var(--good)} .lg-moved{color:var(--r-rare)} .lg-edited{color:var(--muted)} .lg-deleted{color:var(--bad)}
+.lg-coins{color:var(--gold)} .lg-container{color:var(--magic)} .lg-settings{color:var(--warn)} .lg-note{color:var(--ink)}
+.logt td{vertical-align:top}
+.lglink{color:var(--ink);text-decoration:underline dotted;cursor:pointer} .lglink:hover{color:var(--gold)}
+tr.lgedit td{background:var(--panel2)} tr.lgedit input,tr.lgedit select{font-size:13px;padding:3px 5px}
+/* inline ✔ / ✖ confirm (same as the character sheet) */
+button.confirming{background:var(--bad);border-color:var(--bad);color:#fff}
+.cf-yes,.cf-no{font-size:1.1em;text-shadow:0 0 2px black;cursor:pointer;padding:0 3px}
+.cf-yes{color:#4ade80} .cf-no{color:#fff} .cf-txt{color:#fff;font-size:12px}
+/* quick number controls */
+.qtyctl{display:inline-flex;align-items:center;gap:4px}
+.qtyctl input{width:70px;text-align:center;padding:3px 5px}
+td.qcell{white-space:nowrap}
+table.itable{table-layout:fixed;min-width:980px}
+table.itable td{overflow-wrap:anywhere}
+table.itable th{overflow:hidden;text-overflow:ellipsis}
+.qwrap{display:inline-grid;grid-template-columns:22px 56px 22px;align-items:center;justify-items:center}
+.qwrap .qn{justify-self:end;padding-right:4px}
+.qb{margin:0}
+.qb{padding:0 6px;font-size:12px;line-height:18px;margin:0 3px;opacity:0;transition:opacity .15s;background:var(--panel2)}
+tr.item:hover .qb,.qb:focus{opacity:1}
+@media (hover:none){.qb{opacity:1}}
+#toast{position:fixed;left:16px;bottom:14px;background:var(--panel2);border:1px solid var(--gold2);border-radius:6px;padding:6px 12px;font-size:13px;box-shadow:var(--shadow);opacity:0;transition:opacity .25s;pointer-events:none;z-index:60}
+#toast.show{opacity:1}
+
+@media (max-width:760px){
+  .toolbar input[type=search]{width:100%}
+  main{padding:10px 10px 60px}
+  nav.tabs{padding-top:8px;gap:3px} nav.tabs button{padding:8px 10px 7px} nav.tabs button.on{padding:10px 12px 8px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="hrow">
+    <div class="brand"><h1>⚜ Group Inventory</h1><div class="camp" id="campName"></div></div>
+    <div class="spacer"></div>
+    <label class="small muted">I am <select id="meSel"></select></label>
+    <div class="cloud"><span class="dot" id="syncDot"></span><span id="syncText" class="muted">Local only</span>
+      <button id="syncBtn" class="ghost" title="Live sync status">☁</button></div>
+    <button id="themeBtn" class="ghost" title="Toggle parchment / leather theme">☾</button>
+  </div>
+  <nav class="tabs" id="tabs">
+    <button data-tab="inv" class="on"><span class="ti">⚒</span>Inventory</button>
+    <button data-tab="loc"><span class="ti">▣</span>Containers &amp; Locations</button>
+    <button data-tab="cur"><span class="ti">◉</span>Currency</button>
+    <button data-tab="log"><span class="ti">✎</span>Log</button>
+    <button data-tab="set"><span class="ti">⚙</span>Settings</button>
+  </nav>
+</header>
+
+<main>
+  <section id="tab-inv"></section>
+  <section id="tab-loc" class="hidden"></section>
+  <section id="tab-cur" class="hidden"></section>
+  <section id="tab-log" class="hidden"></section>
+  <section id="tab-set" class="hidden"></section>
+</main>
+
+<aside class="drawer" id="drawer" aria-label="Item card"></aside>
+<div id="scrollNav" class="hidden"><button id="toTop" title="Go to top">▲</button><button id="toBottom" title="Go to bottom">▼</button></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* =========================================================
+   GROUP INVENTORY — D&D 5e shared party inventory
+   Data: one JSON document, synced live through Firebase
+   Realtime Database (field-level writes, coins/qty as increments).
+   ========================================================= */
+const APP_VERSION = 1;
+const LS_DATA = 'groupInvFb_data_v1';
+const LS_PREFS = 'groupInvFb_prefs_v1';
+const COLS = ['players', 'locations', 'items', 'purses', 'ledger', 'log', 'vocab'];
+const COINS = ['pp', 'gp', 'ep', 'sp', 'cp'];
+const COIN_CP = { pp: 1000, gp: 100, ep: 50, sp: 10, cp: 1 };
+const RARITIES = ['Mundane', 'Common', 'Uncommon', 'Rare', 'Very Rare', 'Legendary', 'Artifact', 'Varies', 'Unknown'];
+const RAR_ORDER = Object.fromEntries(RARITIES.map((r, i) => [r, i]));
+const LOC_KINDS = { location: '⌂ Location', container: '▣ Container', vehicle: '⛟ Vehicle', mount: '♞ Mount' };
+const LOC_ICON = { location: '⌂', container: '▣', vehicle: '⛟', mount: '♞' };
+const CORE_2014 = ["Player's Handbook (2014)", "Dungeon Master's Guide (2014)", 'Monster Manual (2014)'];
+
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = p => p + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const now = () => Date.now();
+const num = (v, d = 0) => { const n = parseFloat(v); return isFinite(n) ? n : d; };
+const int = (v, d = 0) => { const n = parseInt(v, 10); return isFinite(n) ? n : d; };
+
+/* ---------- catalogue ---------- */
+const CATALOG = (typeof myItems !== 'undefined' && Array.isArray(myItems)) ? myItems : [];
+const CAT_BY_INDEX = new Map(CATALOG.map(c => [c.index, c]));
+
+/* ---------- data model ---------- */
+function seedDB() {
+  const t = 1;
+  return {
+    app: 'group-inventory', version: APP_VERSION,
+    meta: { name: 'Party Inventory', coinWeight: true, coinsPerLb: 50, updatedAt: t },
+    players: [],
+    locations: [
+      { id: 'loc_camp', name: 'Camp / Base', kind: 'location', parentId: '', capacity: null, selfWeight: 0, weightless: true, notes: '', order: 1, updatedAt: t },
+      { id: 'loc_wagon', name: 'Wagon', kind: 'vehicle', parentId: 'loc_camp', capacity: null, selfWeight: 0, weightless: true, notes: '', order: 2, updatedAt: t }
+    ],
+    items: [],
+    purses: [{ id: 'cur_party', holderId: 'party', pp: 0, gp: 0, ep: 0, sp: 0, cp: 0, updatedAt: t }],
+    ledger: [],
+    log: [],
+    vocab: [],
+    tombstones: {}
+  };
+}
+
+function normalizeDB(d) {
+  const db = Object.assign(seedDB(), d || {});
+  db.meta = Object.assign(seedDB().meta, db.meta || {});
+  COLS.forEach(c => { if (!Array.isArray(db[c])) db[c] = []; });
+  if (!db.tombstones || typeof db.tombstones !== 'object') db.tombstones = {};
+  db.items.forEach(it => {
+    it.qty = num(it.qty, 1); it.weightEach = it.weightEach == null || it.weightEach === '' ? null : num(it.weightEach);
+    it.valueCp = it.valueCp == null || it.valueCp === '' ? null : num(it.valueCp);
+    it.holderId = it.holderId || ''; it.updatedAt = it.updatedAt || 0;
+    if (it.identified === undefined) it.identified = true;
+    delete it.attunedTo; // attunement is tracked on character sheets, not here
+  });
+  db.players.forEach((p, i) => { if (p.order == null) p.order = i; p.updatedAt = p.updatedAt || 0; });
+  db.locations.forEach((l, i) => { if (l.order == null) l.order = i; l.kind = l.kind || 'location'; l.parentId = l.parentId || ''; l.updatedAt = l.updatedAt || 0; });
+  db.purses.forEach(p => COINS.forEach(c => p[c] = int(p[c])));
+  return db;
+}
+
+/* Per-record merge: newest updatedAt wins; tombstones delete. Deterministic output. */
+function mergeDB(local, remote) {
+  if (!remote) return local;
+  if (!local) return remote;
+  const out = { app: 'group-inventory', version: APP_VERSION };
+  out.meta = (num(local.meta?.updatedAt) > num(remote.meta?.updatedAt)) ? local.meta : remote.meta;
+  const tomb = {};
+  for (const src of [remote.tombstones || {}, local.tombstones || {}])
+    for (const [k, v] of Object.entries(src)) tomb[k] = Math.max(tomb[k] || 0, v);
+  out.tombstones = Object.fromEntries(Object.keys(tomb).sort().map(k => [k, tomb[k]]));
+  for (const c of COLS) {
+    const m = new Map();
+    for (const r of (remote[c] || [])) m.set(r.id, r);
+    for (const r of (local[c] || [])) {
+      const e = m.get(r.id);
+      if (!e || num(r.updatedAt) > num(e.updatedAt)) m.set(r.id, r);
+    }
+    out[c] = Array.from(m.values())
+      .filter(r => !(tomb[r.id] && tomb[r.id] >= num(r.updatedAt)))
+      .sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  }
+  return out;
+}
+const canon = db => JSON.stringify(mergeDB(db, { meta: { updatedAt: -1 } }));
+
+/* ---------- state ---------- */
+let DB = seedDB();
+let prefs = {
+  theme: 'light', me: '', tab: 'inv',
+  fb: { campaign: '' },
+  filters: { q: '', holder: '', nested: true, type: '', rarity: '', magic: '', attune: '', tag: '' },
+  sort: { key: 'name', dir: 1 }, group: 'none',
+  logf: { q: '', types: [], by: '', from: '', to: '', dir: -1 },
+  setTab: 'chars'
+};
+let dirty = false;
+const sel = new Set();          // selected item ids (bulk actions)
+let openLoc = '';               // container view: holder id currently open
+
+function loadPrefs() {
+  try { const p = JSON.parse(localStorage.getItem(LS_PREFS) || 'null'); if (p) prefs = deepMerge(prefs, p); } catch (e) { }
+}
+function savePrefs() { try { localStorage.setItem(LS_PREFS, JSON.stringify(prefs)); } catch (e) { } }
+function saveLocal() { try { localStorage.setItem(LS_DATA, JSON.stringify(DB)); } catch (e) { } }
+function loadLocal() { try { const d = JSON.parse(localStorage.getItem(LS_DATA) || 'null'); return d ? normalizeDB(d) : null; } catch (e) { return null; } }
+function deepMerge(a, b) {
+  const o = Array.isArray(a) ? a.slice() : Object.assign({}, a);
+  for (const k in b) o[k] = (b[k] && typeof b[k] === 'object' && !Array.isArray(b[k]) && a[k] && typeof a[k] === 'object') ? deepMerge(a[k], b[k]) : b[k];
+  return o;
+}
+
+function meName() { const p = getPlayer(prefs.me); return p ? p.name : (prefs.me === 'dm' ? 'DM' : ''); }
+function touch(rec) { rec.updatedAt = now(); rec.updatedBy = meName(); return rec; }
+function tombstone(id) { DB.tombstones[id] = now() + 1; }
+
+/* commit: persist + schedule sync + re-render (opts.keep = tab names NOT to re-render) */
+/* Containers are always also items, so they show up in a character's list.
+   A container made from an item follows that item around. Returns true if anything changed. */
+function syncLinked() {
+  let changed = false;
+  DB.locations.slice().forEach(l => {
+    if (!getLoc(l.id)) return;
+    if (l.itemId && !getItem(l.itemId) && DB.tombstones[l.itemId]) { removeLocation(l.id); changed = true; return; }
+    if (l.kind === 'container' && !l.noItem && !(l.itemId && getItem(l.itemId))) {
+      const id = 'itl_' + l.id;
+      const it = Object.assign(blankItem(l.parentId), { id, name: l.name || 'Container', type: 'Container', weightEach: num(l.selfWeight) || null, createdAt: now() });
+      touch(it); DB.items.push(it); l.itemId = id; l.selfWeight = 0; touch(l); changed = true;
+    }
+    if (!l.itemId) return;
+    const it = getItem(l.itemId); if (!it) return;
+    if (it.holderId === l.id || descendantsOf(l.id).has(it.holderId)) { it.holderId = l.parentId; touch(it); changed = true; return; }
+    if (l.parentId !== it.holderId) { l.parentId = it.holderId; touch(l); changed = true; }
+    if (l.name !== it.name && it.name) { l.name = it.name; touch(l); changed = true; }
+  });
+  return changed;
+}
+/* ---------- types & tags (shared list, managed in Settings) ---------- */
+const DEFAULT_TYPES = ['Weapon', 'Armor', 'Shield', 'Ammunition', 'Wondrous Item', 'Potion', 'Scroll', 'Ring', 'Wand', 'Staff', 'Rod',
+  'Adventuring Gear', 'Tool', 'Treasure', 'Trade Good', 'Container', 'Mount', 'Misc'];
+const vslug = n => String(n).trim().toLowerCase().replace(/[^a-z0-9æøåäöü]+/g, '-').replace(/^-|-$/g, '') || 'x';
+const vocabId = (kind, n) => 'voc_' + (kind === 'type' ? 't' : 'g') + '_' + vslug(n);
+function vocabList(kind) { return DB.vocab.filter(v => v.kind === kind).sort((a, b) => a.name.localeCompare(b.name)); }
+function vocabFind(kind, n) { const k = String(n).trim().toLowerCase(); return DB.vocab.find(v => v.kind === kind && v.name.trim().toLowerCase() === k); }
+function itemTags(it) { return String(it.tags || '').split(',').map(s => s.trim()).filter(Boolean); }
+function addVocab(kind, n) {
+  n = String(n || '').trim(); if (!n) return null;
+  let v = vocabFind(kind, n); if (v) return v;
+  v = { id: vocabId(kind, n), kind, name: n }; touch(v); DB.vocab.push(v); return v;
+}
+/* anything used on an item is always in the list; first run gets a sensible starter set of types */
+function ensureVocab() {
+  let changed = false;
+  if (!DB.vocab.some(v => v.kind === 'type') && !Object.keys(DB.tombstones).some(k => k.startsWith('voc_t_')))
+    DEFAULT_TYPES.forEach(t => { addVocab('type', t); changed = true; });
+  DB.items.forEach(it => {
+    if (it.type && !vocabFind('type', it.type)) { addVocab('type', it.type); changed = true; }
+    itemTags(it).forEach(t => { if (!vocabFind('tag', t)) { addVocab('tag', t); changed = true; } });
+  });
+  return changed;
+}
+/* delete an item everywhere (card, bulk delete…). If it is a container, the container goes too
+   and whatever was inside is moved to where the item was. */
+function deleteItem(it) {
+  if (!it) return;
+  logItem('deleted', it, { fromId: it.holderId });
+  DB.locations.filter(l => l.itemId === it.id).forEach(l => removeLocation(l.id, it.holderId));
+  DB.items = DB.items.filter(x => x.id !== it.id); tombstone(it.id); sel.delete(it.id);
+}
+/* delete a location/container; whatever was inside goes to `dest` (default: where it was kept) */
+function removeLocation(id, dest) {
+  const l = getLoc(id); if (!l) return;
+  if (dest === undefined) dest = l.parentId || '';
+  DB.items.forEach(it => { if (it.holderId === id) { it.holderId = dest; touch(it); } });
+  DB.locations.forEach(x => { if (x.parentId === id) { x.parentId = dest; touch(x); } });
+  const pu = purseOf(id);
+  if (pu) { if (coinValue(pu)) { const pf = ensurePurse('party'); COINS.forEach(c => pf[c] = int(pf[c]) + int(pu[c])); touch(pf); } DB.purses = DB.purses.filter(x => x !== pu); tombstone(pu.id); }
+  DB.locations = DB.locations.filter(x => x.id !== id); tombstone(id);
+  if (openLoc === id) openLoc = '';
+}
+function commit(opts = {}) {
+  syncLinked(); ensureVocab(); saveLocal(); dirty = true; scheduleSync();
+  if (opts.defer) setTimeout(() => {   // after focus has moved (Tab), re-render and put focus back
+    const ae = document.activeElement, sel = selectorFor(ae);
+    renderAll(); if (sel) { const el = document.querySelector(sel); if (el) { el.focus(); try { el.select && el.select(); } catch (e) { } } }
+  }, 0);
+  else renderAll(opts.keep || []);
+}
+function selectorFor(el) {
+  if (!el || el === document.body || !el.matches || !el.matches('input,select,textarea,button')) return null;
+  if (el.id) return '#' + el.id;
+  const a = Array.from(el.attributes).filter(x => x.name.startsWith('data-')).map(x => `[${x.name}="${String(x.value).replace(/"/g, '\\"')}"]`).join('');
+  return a ? el.tagName.toLowerCase() + a : null;
+}
+
+/* ---------- lookups ---------- */
+const getPlayer = id => DB.players.find(p => p.id === id);
+const getLoc = id => DB.locations.find(l => l.id === id);
+const getItem = id => DB.items.find(i => i.id === id);
+const sortedPlayers = () => DB.players.slice().sort((a, b) => num(a.order) - num(b.order) || a.name.localeCompare(b.name));
+const sortedLocs = () => DB.locations.slice().sort((a, b) => num(a.order) - num(b.order) || a.name.localeCompare(b.name));
+
+function holderName(id) {
+  if (!id) return 'Unassigned';
+  if (id === 'party') return 'Party Fund';
+  const p = getPlayer(id); if (p) return p.name || '(unnamed)';
+  const l = getLoc(id); if (l) return l.name || '(unnamed)';
+  return '(removed)';
+}
+/* chain of holders from the outermost down to id */
+function holderPath(id) {
+  const path = []; const seen = new Set(); let cur = id;
+  while (cur && !seen.has(cur)) {
+    seen.add(cur); path.unshift(cur);
+    const l = getLoc(cur); cur = l ? l.parentId : '';
+  }
+  return path;
+}
+function holderLabel(id) {
+  const p = holderPath(id);
+  if (p.length <= 1) return holderName(id);
+  return holderName(id) + ' ‹ ' + p.slice(0, -1).reverse().map(holderName).join(' ‹ ');
+}
+function isWithin(holderId, targetId) { return holderPath(holderId).includes(targetId); }
+function descendantsOf(locId) {
+  const out = new Set(); const st = [locId];
+  while (st.length) { const c = st.pop(); DB.locations.forEach(l => { if (l.parentId === c && !out.has(l.id)) { out.add(l.id); st.push(l.id); } }); }
+  return out;
+}
+
+/* ---------- weight / value ---------- */
+const itemWeight = it => num(it.qty) * num(it.weightEach);
+const itemValue = it => num(it.qty) * num(it.valueCp);
+function purseOf(holderId) { return DB.purses.find(p => p.holderId === holderId); }
+function coinCount(p) { return p ? COINS.reduce((s, c) => s + int(p[c]), 0) : 0; }
+function coinValue(p) { return p ? COINS.reduce((s, c) => s + int(p[c]) * COIN_CP[c], 0) : 0; }
+
+/* weight this holder is burdened with (stops at weightless containers) */
+function holderLoad(id, seen = new Set()) {
+  if (seen.has(id)) return 0; seen.add(id);
+  let w = 0;
+  DB.items.forEach(it => { if (it.holderId === id) w += itemWeight(it); });
+  DB.locations.forEach(l => { if (l.parentId === id) w += num(l.selfWeight) + (l.weightless ? 0 : holderLoad(l.id, seen)); });
+  if (DB.meta.coinWeight) w += coinCount(purseOf(id)) / (num(DB.meta.coinsPerLb, 50) || 50);
+  return w;
+}
+/* everything inside (all nesting, ignores weightless) */
+function holderContentsWeight(id, seen = new Set()) {
+  if (seen.has(id)) return 0; seen.add(id);
+  let w = 0;
+  DB.items.forEach(it => { if (it.holderId === id) w += itemWeight(it); });
+  DB.locations.forEach(l => { if (l.parentId === id) w += num(l.selfWeight) + holderContentsWeight(l.id, seen); });
+  return w;
+}
+function holderValue(id) { return DB.items.reduce((s, it) => s + (isWithin(it.holderId, id) ? itemValue(it) : 0), 0); }
+function holderCount(id) { return DB.items.reduce((s, it) => s + (isWithin(it.holderId, id) ? 1 : 0), 0); }
+function capacityOf(id) {
+  const p = getPlayer(id); if (p) return num(p.str) ? num(p.str) * 15 : null;
+  const l = getLoc(id); return l && num(l.capacity) ? num(l.capacity) : null;
+}
+
+/* ---------- formatting ---------- */
+function fmtW(w) { if (!w) return '—'; return (+w.toFixed(2)) + ' lb'; }
+function fmtCp(cp) {
+  cp = num(cp); if (!cp) return '—';
+  if (cp >= 100) return (+(cp / 100).toFixed(2)).toLocaleString('en-US') + ' gp';
+  if (cp >= 10 && cp % 10 === 0) return (cp / 10) + ' sp';
+  return cp + ' cp';
+}
+function fmtGp(cp) { return (+(num(cp) / 100).toFixed(2)).toLocaleString('en-US') + ' gp'; }
+function fmtTime(t) { if (!t || t < 1000) return ''; const d = new Date(t); return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+const rarClass = r => 'rar-' + String(r || '').replace(/\s+/g, '-');
+
+let toastT;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 2200); }
+
+/* option builders */
+function holderOptions(selected, opts = {}) {
+  const exclude = opts.exclude || new Set();
+  const kids = new Map();
+  sortedLocs().forEach(l => { const p = (getPlayer(l.parentId) || getLoc(l.parentId)) ? l.parentId : ''; if (!kids.has(p)) kids.set(p, []); kids.get(p).push(l); });
+  const pad = n => '\u00A0\u00A0\u00A0'.repeat(n);
+  const opt = (id, label, depth) => exclude.has(id) ? '' : `<option value="${esc(id)}" ${id === selected ? 'selected' : ''}>${pad(depth)}${label}</option>`;
+  const tree = (pid, depth, seen = new Set()) => (kids.get(pid) || []).filter(l => !seen.has(l.id) && !exclude.has(l.id))
+    .map(l => { seen.add(l.id); return opt(l.id, `${LOC_ICON[l.kind] || ''} ${esc(l.name || '(unnamed)')}`, depth) + tree(l.id, depth + 1, seen); }).join('');
+  let h = opts.none !== false ? `<option value="">${esc(opts.noneLabel || '— Unassigned —')}</option>` : '';
+  if (opts.party) h += `<option value="party" ${selected === 'party' ? 'selected' : ''}>Party Fund</option>`;
+  const pl = sortedPlayers().filter(p => !exclude.has(p.id));
+  if (pl.length) h += '<optgroup label="Characters (and what they carry)">' + pl.map(p => opt(p.id, esc(p.name || '(unnamed)'), 0) + tree(p.id, 1)).join('') + '</optgroup>';
+  const top = tree('', 0);
+  if (top) h += '<optgroup label="Locations &amp; vehicles">' + top + '</optgroup>';
+  return h;
+}
+function playerOptions(selected, noneLabel = '— none —') {
+  return `<option value="">${esc(noneLabel)}</option>` + sortedPlayers().map(p => `<option value="${esc(p.id)}" ${p.id === selected ? 'selected' : ''}>${esc(p.name || '(unnamed)')}</option>`).join('');
+}
+function valueParts(cp) {
+  if (cp == null || cp === '') return { v: '', u: 'gp' };
+  cp = num(cp);
+  if (cp % 100 === 0 || cp >= 100) return { v: +(cp / 100).toFixed(2), u: 'gp' };
+  if (cp % 10 === 0) return { v: cp / 10, u: 'sp' };
+  return { v: cp, u: 'cp' };
+}
+
+/* =================== INVENTORY TAB =================== */
+function filteredItems() {
+  const f = prefs.filters; const q = (f.q || '').trim().toLowerCase();
+  return DB.items.filter(it => {
+    if (q && !([it.name, it.tags, it.notes, it.type, holderName(it.holderId)].join(' ').toLowerCase().includes(q))) return false;
+    if (f.holder) {
+      if (f.holder === '__none') { if (it.holderId) return false; }
+      else if (f.nested ? !isWithin(it.holderId, f.holder) : it.holderId !== f.holder) return false;
+    }
+    if (f.type && (it.type || '') !== f.type) return false;
+    if (f.rarity && (it.rarity || '') !== f.rarity) return false;
+    if (f.magic === 'magic' && !it.magical) return false;
+    if (f.magic === 'mundane' && it.magical) return false;
+    if (f.attune === 'req' && !it.attunement) return false;
+    if (f.attune === 'none' && it.attunement) return false;
+    if (f.tag && !String(it.tags || '').split(',').map(s => s.trim().toLowerCase()).includes(f.tag.toLowerCase())) return false;
+    return true;
+  });
+}
+const SORTERS = {
+  name: it => (it.name || '').toLowerCase(),
+  qty: it => num(it.qty),
+  weight: it => itemWeight(it),
+  value: it => itemValue(it),
+  holder: it => holderLabel(it.holderId).toLowerCase(),
+  type: it => (it.type || '').toLowerCase(),
+  rarity: it => RAR_ORDER[it.rarity] ?? -1,
+  updated: it => num(it.updatedAt)
+};
+function sortItems(list) {
+  const k = SORTERS[prefs.sort.key] || SORTERS.name; const d = prefs.sort.dir;
+  return list.sort((a, b) => { const x = k(a), y = k(b); return (x < y ? -1 : x > y ? 1 : 0) * d || (a.name || '').localeCompare(b.name || ''); });
+}
+function groupKey(it) {
+  switch (prefs.group) {
+    case 'holder': return holderLabel(it.holderId);
+    case 'owner': { const p = holderPath(it.holderId)[0]; return p ? holderName(p) : 'Unassigned'; }
+    case 'type': return it.type || 'Other';
+    case 'rarity': return it.rarity || '—';
+    case 'magic': return it.magical ? 'Magic items' : 'Mundane items';
+    default: return '';
+  }
+}
+
+function itemBadges(it) {
+  let b = '';
+  if (it.magical) b += '<span class="badge b-magic" title="Magic item">✦ magic</span>';
+  if (it.attunement) b += `<span class="badge b-att" title="Requires attunement${it.attuneNote ? ' ' + esc(it.attuneNote) : ''}">◈ attune</span>`;
+  if (it.equipped) b += '<span class="badge b-eq">equipped</span>';
+  if (it.identified === false) b += '<span class="badge b-unid">unidentified</span>';
+  const lk = DB.locations.find(l => l.itemId === it.id);
+  if (lk) b += `<span class="badge" style="color:var(--gold)" title="Container — ${holderCount(lk.id)} items inside">▣ ${holderCount(lk.id)}</span>`;
+  if (num(it.chargesMax)) b += `<span class="badge muted">${int(it.charges)}/${int(it.chargesMax)} ch</span>`;
+  return b;
+}
+function itemRow(it, cols) {
+  const cells = {
+    sel: `<td><input type="checkbox" data-sel="${esc(it.id)}" ${sel.has(it.id) ? 'checked' : ''}></td>`,
+    name: `<td><span class="iname">${esc(it.name || '(unnamed)')}</span>${itemBadges(it)}${it.tags ? `<div class="small muted">${esc(it.tags)}</div>` : ''}</td>`,
+    qty: `<td class="num qcell"><span class="qwrap"><button class="qb" data-q="-1" data-id="${esc(it.id)}" title="One less">−</button><span class="qn">${esc(+num(it.qty).toFixed(2))}</span><button class="qb" data-q="1" data-id="${esc(it.id)}" title="One more">+</button></span></td>`,
+    wEach: `<td class="num muted">${fmtW(num(it.weightEach))}</td>`,
+    weight: `<td class="num">${fmtW(itemWeight(it))}</td>`,
+    value: `<td class="num" title="${it.valueCp ? 'each ' + fmtCp(it.valueCp) : ''}">${fmtCp(itemValue(it))}</td>`,
+    holder: `<td>${esc(holderLabel(it.holderId))}</td>`,
+    type: `<td class="small">${esc(it.type || '')}</td>`,
+    rarity: `<td class="small ${rarClass(it.rarity)}">${esc(it.rarity && it.rarity !== 'Mundane' ? it.rarity : '')}</td>`
+  };
+  return `<tr class="item ${sel.has(it.id) ? 'sel' : ''}" data-item="${esc(it.id)}">${cols.map(c => cells[c]).join('')}</tr>`;
+}
+const COL_W = { sel: '36px', qty: '124px', wEach: '82px', weight: '86px', value: '96px', holder: '210px', type: '150px', rarity: '96px' };
+const INV_COLS = [['sel', ''], ['name', 'Name'], ['qty', 'Qty'], ['wEach', 'Wt each'], ['weight', 'Weight'], ['value', 'Value'], ['holder', 'Carried by / Location'], ['type', 'Type'], ['rarity', 'Rarity']];
+const SORTABLE = { name: 'name', qty: 'qty', weight: 'weight', value: 'value', holder: 'holder', type: 'type', rarity: 'rarity' };
+
+function itemsTable(list, cols, opts = {}) {
+  const head = cols.map(c => {
+    const label = (INV_COLS.find(x => x[0] === c) || [c, c])[1];
+    if (c === 'sel') return `<th class="nosort"><input type="checkbox" data-selall ${list.length && list.every(i => sel.has(i.id)) ? 'checked' : ''}></th>`;
+    const sk = SORTABLE[c];
+    if (!sk || opts.nosort) return `<th class="nosort${c === 'wEach' ? ' right' : ''}">${label}</th>`;
+    const arr = prefs.sort.key === sk ? `<span class="arr">${prefs.sort.dir > 0 ? '▲' : '▼'}</span>` : '';
+    return `<th data-sort="${sk}"${['qty', 'weight', 'value'].includes(c) ? ' class="right"' : ''}>${label} ${arr}</th>`;
+  }).join('');
+  let body = '';
+  if (!list.length) body = `<tr><td colspan="${cols.length}" class="empty">${opts.empty || 'No items.'}</td></tr>`;
+  else if (prefs.group !== 'none' && !opts.nogroup) {
+    const groups = new Map();
+    list.forEach(it => { const g = groupKey(it); if (!groups.has(g)) groups.set(g, []); groups.get(g).push(it); });
+    Array.from(groups.keys()).sort((a, b) => a.localeCompare(b)).forEach(g => {
+      const gl = groups.get(g);
+      const w = gl.reduce((s, i) => s + itemWeight(i), 0), v = gl.reduce((s, i) => s + itemValue(i), 0);
+      body += `<tr class="grp"><td colspan="${cols.length}">${esc(g)} <span class="muted small">· ${gl.length} item${gl.length === 1 ? '' : 's'} · ${fmtW(w)} · ${fmtCp(v)}</span></td></tr>`;
+      body += gl.map(it => itemRow(it, cols)).join('');
+    });
+  } else body = list.map(it => itemRow(it, cols)).join('');
+  const tw = list.reduce((s, i) => s + itemWeight(i), 0), tv = list.reduce((s, i) => s + itemValue(i), 0);
+  const foot = list.length ? `<tfoot><tr>${cols.map(c => c === 'name' ? `<td>${list.length} item${list.length === 1 ? '' : 's'}</td>` : c === 'weight' ? `<td class="num">${fmtW(tw)}</td>` : c === 'value' ? `<td class="num">${fmtCp(tv)}</td>` : c === 'qty' ? `<td class="num qcell"><span class="qwrap"><span></span><span class="qn">${+list.reduce((s, i) => s + num(i.qty), 0).toFixed(2)}</span><span></span></span></td>` : '<td></td>').join('')}</tr></tfoot>` : '';
+  // fixed column widths so nothing shifts when a number changes
+  const colg = '<colgroup>' + cols.map(c => `<col${COL_W[c] ? ` style="width:${COL_W[c]}"` : ''}>`).join('') + '</colgroup>';
+  return `<div class="tablewrap"><table class="itable">${colg}<thead><tr>${head}</tr></thead><tbody>${body}</tbody>${foot}</table></div>`;
+}
+
+function bulkBar() {
+  const ids = Array.from(sel).filter(id => getItem(id));
+  if (!ids.length) return '';
+  return `<div class="bulk"><b>${ids.length} selected</b> · Move to <select id="bulkTo">${holderOptions('')}</select>
+    <button data-act="bulkMove">Move</button>
+    <button data-act="bulkDel" class="danger">Delete</button>
+    <button data-act="bulkClear" class="ghost">Clear selection</button></div>`;
+}
+
+function playerChips() {
+  const pl = sortedPlayers();
+  if (!pl.length) return `<div class="chips"><span class="muted small">No characters yet — add your party in <a href="#" data-goto="set">Settings</a>.</span></div>`;
+  return '<div class="chips">' + pl.map(p => {
+    const load = holderLoad(p.id), cap = capacityOf(p.id);
+    return `<div class="chip" data-chip="${esc(p.id)}" title="Show what ${esc(p.name)} carries">
+      <span class="pdot" style="background:${esc(p.color || '#9c7020')}"></span><b>${esc(p.name || '(unnamed)')}</b>
+      <span class="${cap && load > cap ? 'over' : ''}">${fmtW(load)}${cap ? ' / ' + cap + ' lb' : ''}</span>
+</div>`;
+  }).join('') + '</div>';
+}
+
+function renderInventory() {
+  const f = prefs.filters;
+  const types = Array.from(new Set(DB.items.map(i => i.type).filter(Boolean))).sort();
+  const tags = Array.from(new Set(DB.items.flatMap(i => String(i.tags || '').split(',').map(s => s.trim()).filter(Boolean)))).sort();
+  const list = sortItems(filteredItems());
+  const active = Object.entries(f).some(([k, v]) => k !== 'nested' && v);
+  $('#tab-inv').innerHTML = `
+    ${playerChips()}
+    <div class="panel"><div class="toolbar">
+      <button class="gold" data-act="newItem">+ Add item</button>
+      <input type="search" id="fQ" placeholder="Search name, tag, notes…" value="${esc(f.q)}">
+      <label>Who / where <select id="fHolder"><option value="">All</option><option value="__none" ${f.holder === '__none' ? 'selected' : ''}>Unassigned</option>${holderOptions(f.holder, { none: false })}</select></label>
+      <label title="Also show items inside containers carried/stored there"><input type="checkbox" id="fNested" ${f.nested ? 'checked' : ''}> incl. containers</label>
+      <label>Type <select id="fType"><option value="">All</option>${types.map(t => `<option ${t === f.type ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
+      <label>Rarity <select id="fRarity"><option value="">All</option>${RARITIES.map(r => `<option ${r === f.rarity ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
+      <label>Magic <select id="fMagic"><option value="">All</option><option value="magic" ${f.magic === 'magic' ? 'selected' : ''}>Magic only</option><option value="mundane" ${f.magic === 'mundane' ? 'selected' : ''}>Mundane only</option></select></label>
+      <label>Attunement <select id="fAttune"><option value="">All</option><option value="req" ${f.attune === 'req' ? 'selected' : ''}>Requires attunement</option><option value="none" ${f.attune === 'none' ? 'selected' : ''}>No attunement</option></select></label>
+      ${tags.length ? `<label>Tag <select id="fTag"><option value="">All</option>${tags.map(t => `<option ${t === f.tag ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>` : ''}
+      <label>Sort <select id="sKey">${[['name', 'Name'], ['qty', 'Quantity'], ['weight', 'Weight'], ['value', 'Value'], ['holder', 'Carried by / Location'], ['type', 'Type'], ['rarity', 'Rarity'], ['updated', 'Last changed']].map(([k, l]) => `<option value="${k}" ${prefs.sort.key === k ? 'selected' : ''}>${l}</option>`).join('')}</select>
+        <button class="small" id="sDir" title="Toggle direction">${prefs.sort.dir > 0 ? '▲' : '▼'}</button></label>
+      <label>Group <select id="gKey">${[['none', 'None'], ['holder', 'Carried by / Location'], ['owner', 'Owner (top level)'], ['type', 'Type'], ['rarity', 'Rarity'], ['magic', 'Magic / mundane']].map(([k, l]) => `<option value="${k}" ${prefs.group === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+      ${active ? '<button class="ghost small" data-act="clearFilters">✕ Clear filters</button>' : ''}
+    </div></div>
+    ${bulkBar()}
+    ${itemsTable(list, INV_COLS.map(c => c[0]), { empty: DB.items.length ? 'No items match the filters.' : 'The party has nothing yet. Click <b>+ Add item</b> to start.' })}
+    <p class="small muted">Showing ${list.length} of ${DB.items.length} items · Total party item value ${fmtCp(DB.items.reduce((s, i) => s + itemValue(i), 0))} · Coins ${fmtGp(DB.purses.reduce((s, p) => s + coinValue(p), 0))}</p>`;
+}
+const CATALOG_TYPES = Array.from(new Set(CATALOG.map(c => c.type).filter(Boolean)));
+
+/* −/+ buttons in the table's Qty column */
+function qtyClick(t) {
+  const q = t.closest && t.closest('[data-q]'); if (!q) return false;
+  const it = getItem(q.dataset.id); if (it) setQty(it, num(it.qty) + num(q.dataset.q));
+  return true;
+}
+/* double-click a row → straight to edit */
+function rowDblClick(e) {
+  if (e.target.closest('button,input,select,a,[data-q]')) return;
+  const tr = e.target.closest('tr[data-item]'); if (tr) openItemEdit(tr.dataset.item);
+}
+function bindInventory() {
+  const root = $('#tab-inv');
+  root.addEventListener('dblclick', rowDblClick);
+  let qT;
+  root.addEventListener('input', e => {
+    if (e.target.id === 'fQ') {
+      clearTimeout(qT); qT = setTimeout(() => {
+        prefs.filters.q = e.target.value; savePrefs();
+        const pos = e.target.selectionStart; renderInventory();
+        const q = $('#fQ'); q.focus(); try { q.setSelectionRange(pos, pos); } catch (er) { }
+      }, 200);
+    }
+  });
+  root.addEventListener('change', e => {
+    const t = e.target, f = prefs.filters;
+    const map = { fHolder: 'holder', fType: 'type', fRarity: 'rarity', fMagic: 'magic', fAttune: 'attune', fTag: 'tag' };
+    if (map[t.id]) f[map[t.id]] = t.value;
+    else if (t.id === 'fNested') f.nested = t.checked;
+    else if (t.id === 'sKey') prefs.sort.key = t.value;
+    else if (t.id === 'gKey') prefs.group = t.value;
+    else if (t.dataset.sel !== undefined) { t.checked ? sel.add(t.dataset.sel) : sel.delete(t.dataset.sel); }
+    else if (t.hasAttribute('data-selall')) { filteredItems().forEach(i => t.checked ? sel.add(i.id) : sel.delete(i.id)); }
+    else return;
+    savePrefs(); renderInventory();
+  });
+  root.addEventListener('click', e => {
+    const t = e.target;
+    if (t.matches('input[type=checkbox]')) return;
+    const th = t.closest('th[data-sort]');
+    if (th) { const k = th.dataset.sort; if (prefs.sort.key === k) prefs.sort.dir *= -1; else { prefs.sort.key = k; prefs.sort.dir = 1; } savePrefs(); renderInventory(); return; }
+    if (t.id === 'sDir') { prefs.sort.dir *= -1; savePrefs(); renderInventory(); return; }
+    const chip = t.closest('[data-chip]');
+    if (chip) { prefs.filters.holder = prefs.filters.holder === chip.dataset.chip ? '' : chip.dataset.chip; prefs.filters.nested = true; savePrefs(); renderInventory(); return; }
+    const go = t.closest('[data-goto]'); if (go) { e.preventDefault(); if (go.dataset.goto === 'set') prefs.setTab = 'chars'; showTab(go.dataset.goto); return; }
+    const act = t.closest('[data-act]')?.dataset.act;
+    if (act) { handleAct(act, t.closest('[data-act]'), root); return; }
+    if (qtyClick(t)) return;
+    const tr = t.closest('tr[data-item]');
+    if (tr) openItem(tr.dataset.item);
+  });
+}
+
+/* shared actions (inventory + container view) */
+function handleAct(act, btn, root) {
+  switch (act) {
+    case 'newItem': newItem(btn.dataset.holder || (prefs.filters.holder && prefs.filters.holder !== '__none' ? prefs.filters.holder : '')); break;
+    case 'clearFilters': prefs.filters = { q: '', holder: '', nested: true, type: '', rarity: '', magic: '', attune: '', tag: '' }; savePrefs(); renderInventory(); break;
+    case 'bulkClear': sel.clear(); renderAll(); break;
+    case 'bulkMove': {
+      const to = $('#bulkTo', root).value; let n = 0;
+      sel.forEach(id => { const it = getItem(id); if (it && it.holderId !== to) { logItem('moved', it, { fromId: it.holderId, toId: to }); it.holderId = to; touch(it); n++; } });
+      sel.clear(); commit(); toast(`Moved ${n} item${n === 1 ? '' : 's'} to ${holderName(to)}`); break;
+    }
+    case 'bulkDel': {
+      if (!armed(btn, '', `Delete ${sel.size}?`)) return;
+      let n = 0; Array.from(sel).forEach(id => { const it = getItem(id); if (it) { deleteItem(it); n++; } });
+      sel.clear(); commit(); toast(`Deleted ${n} item${n === 1 ? '' : 's'}`); break;
+    }
+  }
+}
+
+/* =================== ITEM CARD (drawer) =================== */
+let drawer = { mode: null, id: null, draft: null, editDesc: false, catQ: '', catSrc: '' };
+
+function blankItem(holderId = '') {
+  return { id: '', name: '', qty: 1, weightEach: null, valueCp: null, holderId, type: '', rarity: '', magical: false,
+    attunement: false, attuneNote: '', equipped: false, identified: true, charges: null, chargesMax: null,
+    tags: '', stats: '', desc: '', notes: '', source: '', catalogIndex: '' };
+}
+function newItem(holderId) { drawer = { mode: 'new', id: null, draft: blankItem(holderId), editDesc: false, newType: false, newTag: false, catQ: '', catSrc: drawer.catSrc || '' }; renderDrawer(); openDrawer(); setTimeout(() => $('#catQ')?.focus(), 220); }
+function openItemEdit(id) { openItem(id); drawer.mode = 'edit'; renderDrawer(); $('#drawer').scrollTop = 0; }
+/* change a number straight from the overview / table; logged like an edit */
+function setQty(it, q) {
+  q = Math.max(0, +num(q).toFixed(4)); if (q === num(it.qty)) return;
+  logEdit(it, 'qty', num(it.qty), q); it.qty = q; touch(it); commit();
+  if (drawer.mode === 'view' && drawer.id === it.id) renderDrawer();
+}
+function setCharges(it, c) {
+  c = Math.max(0, Math.min(num(it.chargesMax) || Infinity, int(c))); if (c === it.charges) return;
+  logEdit(it, 'charges', it.charges, c); it.charges = c; touch(it); commit();
+  if (drawer.mode === 'view' && drawer.id === it.id) renderDrawer();
+}
+function openItem(id) { drawer = { mode: 'view', id, draft: null, editDesc: false, newType: false, newTag: false, catQ: '', catSrc: drawer.catSrc || '' }; renderDrawer(); openDrawer(); }
+function openDrawer() { $('#drawer').classList.add('open'); document.body.classList.add('drawer-open'); }
+function closeDrawer() { $('#drawer').classList.remove('open'); document.body.classList.remove('drawer-open'); drawer.mode = null; }
+function curItem() { return drawer.mode === 'new' ? drawer.draft : getItem(drawer.id); }
+const linkedLoc = it => it && it.id ? DB.locations.find(l => l.itemId === it.id) : null;
+
+function catStats(c) {
+  const p = [];
+  if (c.damage) p.push(c.damage + (c.damage_type ? ' ' + c.damage_type : '') + (c.damage2 ? ' (' + c.damage2 + ')' : ''));
+  if (c.armor_class) p.push('AC ' + c.armor_class);
+  if (c.strength_req) p.push('Str ' + c.strength_req);
+  if (c.stealth_disadvantage) p.push('Stealth disadv.');
+  if (c.range) p.push('Range ' + c.range);
+  if (c.properties && c.properties.length) p.push(c.properties.join(', '));
+  return p.join(' · ');
+}
+function applyCatalog(it, c) {
+  Object.assign(it, {
+    name: c.name, type: c.type || '', rarity: c.rarity || '', magical: c.item_category === 'Magic',
+    attunement: !!c.attunement, attuneNote: c.attunement_note || '', weightEach: c.weight ?? null, valueCp: c.value_cp ?? null,
+    desc: c.desc || '', stats: catStats(c), source: [c.source_book, c.page ? 'p. ' + c.page : ''].filter(Boolean).join(', '), catalogIndex: c.index
+  });
+}
+function catalogSearch(q, src) {
+  q = q.trim().toLowerCase(); if (q.length < 2) return [];
+  const res = [];
+  for (const c of CATALOG) {
+    if (src === '__core' ? !CORE_2014.includes(c.source_book) : (src && c.source_book !== src)) continue;
+    const n = c.name.toLowerCase(); const i = n.indexOf(q);
+    if (i >= 0) res.push([i === 0 ? 0 : 1, c]);
+  }
+  return res.sort((a, b) => a[0] - b[0] || a[1].name.localeCompare(b[1].name)).slice(0, 40).map(x => x[1]);
+}
+const CAT_BOOKS = Array.from(new Set(CATALOG.map(c => c.source_book))).sort();
+
+function catalogBlock() {
+  if (!CATALOG.length) return `<p class="warn">Item catalogue not loaded — put <b>items-data.js</b> next to this file to search 5e items. You can still enter items by hand.</p>`;
+  const res = catalogSearch(drawer.catQ, drawer.catSrc);
+  return `<div class="sect" style="border-top:none;margin-top:6px">
+    <div class="inl"><input id="catQ" placeholder="Search ${CATALOG.length} 5e items… (e.g. rope, longsword, bag of holding)" value="${esc(drawer.catQ)}">
+    <select id="catSrc" style="max-width:150px"><option value="">All books</option><option value="__core" ${drawer.catSrc === '__core' ? 'selected' : ''}>Core 2014 (PHB/DMG/MM)</option>${CAT_BOOKS.map(b => `<option ${b === drawer.catSrc ? 'selected' : ''}>${esc(b)}</option>`).join('')}</select></div>
+    <div id="catRes">${catResHtml(res)}</div>
+    <p class="small muted">Pick an item to fill the card, or just type your own below.</p></div>`;
+}
+function catResHtml(res) {
+  if (!drawer.catQ || drawer.catQ.trim().length < 2) return '';
+  if (!res.length) return '<div class="catres"><div class="muted">No catalogue match — fill in the card by hand.</div></div>';
+  return '<div class="catres">' + res.map(c => `<div data-cat="${esc(c.index)}"><b>${esc(c.name)}</b> <span class="small ${rarClass(c.rarity)}">${esc(c.rarity !== 'Mundane' ? c.rarity : '')}</span>
+    <span class="small muted">· ${esc(c.type)}${c.weight ? ' · ' + c.weight + ' lb' : ''}${c.value_display ? ' · ' + esc(c.value_display) : ''}${c.attunement ? ' · ◈' : ''} · ${esc(c.source_abbr || '')}</span></div>`).join('') + '</div>';
+}
+
+/* ---- simple read-only overview (first thing you see) ---- */
+function renderView(it) {
+  const d = $('#drawer');
+  const lk = linkedLoc(it);
+  const sub = [it.rarity && it.rarity !== 'Mundane' ? `<span class="${rarClass(it.rarity)}">${esc(it.rarity)}</span>` : '', esc(it.type || ''),
+    it.attunement ? 'requires attunement' + (it.attuneNote ? ' ' + esc(it.attuneNote) : '') : ''].filter(Boolean).join(' · ');
+  const row = (k, v) => v === '' || v == null ? '' : `<dt>${k}</dt><dd>${v}</dd>`;
+  const each = (tot, one, f) => num(it.qty) !== 1 && one ? `${f(tot)} <span class="muted">(${f(one)} each)</span>` : f(tot);
+  const contents = lk ? DB.items.filter(x => x.holderId === lk.id).sort((a, b) => a.name.localeCompare(b.name)) : [];
+  const subs = lk ? DB.locations.filter(x => x.parentId === lk.id) : [];
+  d.innerHTML = `
+  <div class="dr-head"><h3 id="drTitle">${esc(it.name || '(unnamed)')}</h3>
+    <button class="gold small" data-dr="edit">✎ Edit</button>
+    <button class="ghost" data-dr="close" title="Close (Esc)">✕</button></div>
+  <div class="view">
+    ${sub ? `<div class="vsub">${sub}</div>` : ''}
+    <div>${itemBadges(it)}</div>
+    <dl class="vlist">
+      ${row('Quantity', `<span class="qtyctl"><button class="small" data-dr="q-" title="One less">−</button><input id="vQty" type="number" min="0" step="any" value="${esc(+num(it.qty).toFixed(2))}"><button class="small" data-dr="q+" title="One more">+</button></span>`)}
+      ${row('Weight', num(it.weightEach) ? each(itemWeight(it), num(it.weightEach), fmtW) : '—')}
+      ${row('Value', num(it.valueCp) ? each(itemValue(it), num(it.valueCp), fmtCp) : '—')}
+      ${row('Carried by', esc(holderLabel(it.holderId)))}
+      ${num(it.chargesMax) ? row('Charges', `<span class="qtyctl"><button class="small" data-dr="chg-" title="Use a charge">−</button><input id="vChg" type="number" min="0" max="${int(it.chargesMax)}" value="${int(it.charges)}"><button class="small" data-dr="chg+" title="Regain a charge">+</button> <span class="muted">/ ${int(it.chargesMax)}</span></span>`) : ''}
+      ${row('Stats', esc(it.stats || ''))}
+      ${row('Tags', esc(it.tags || ''))}
+      ${row('Source', esc(it.source || ''))}
+    </dl>
+    ${lk ? `<div class="sect"><h4>▣ Contents · ${holderCount(lk.id)} item(s) · ${fmtW(holderContentsWeight(lk.id))}${lk.weightless ? ' (weightless)' : ''}</h4>
+      ${contents.length || subs.length ? `<ul class="vcont">${subs.map(x => `<li>${LOC_ICON[x.kind] || ''} ${esc(x.name)}</li>`).join('')}${contents.map(x => `<li><a data-goitem="${esc(x.id)}">${esc(x.name)}</a>${num(x.qty) !== 1 ? ' × ' + esc(+num(x.qty).toFixed(2)) : ''}</li>`).join('')}</ul>` : '<p class="muted small">Empty.</p>'}
+      <div class="toolbar"><button class="small" data-dr="addInto">+ Put an item in it</button><button class="small" data-dr="openCont">Open container view</button></div></div>` : ''}
+    <div class="sect"><h4>Description</h4><div class="desc">${it.desc ? esc(it.desc) : '<span class="muted">No description.</span>'}</div></div>
+    ${it.notes ? `<div class="sect"><h4>Group notes</h4><div class="desc">${esc(it.notes)}</div></div>` : ''}
+    <div class="sect"><h4>Move / give</h4>
+      <div class="toolbar"><input id="trQty" type="number" min="0" step="any" value="${esc(it.qty)}" style="width:70px"> to
+      <select id="trTo" style="flex:1;min-width:0">${holderOptions('', { exclude: new Set([it.holderId, ...ownCont(it)]) })}</select><button data-dr="transfer">Move</button></div></div>
+    <p class="small muted">${it.updatedAt > 1000 ? 'Changed ' + esc(fmtTime(it.updatedAt)) + (it.updatedBy ? ' by ' + esc(it.updatedBy) : '') : ''}</p>
+  </div>`;
+}
+
+function renderDrawer() {
+  const it = curItem();
+  if (it && drawer.mode === 'view') { renderView(it); return; }
+  const d = $('#drawer');
+  if (!it) { closeDrawer(); return; }
+  const isNew = drawer.mode === 'new';
+  const vp = valueParts(it.valueCp);
+  d.innerHTML = `
+  <div class="dr-head"><h3 id="drTitle">${isNew ? 'New item' : esc(it.name || '(unnamed)')}</h3>
+    ${isNew ? '' : '<button class="gold small" data-dr="done" title="Back to the overview">✓ Done</button>'}
+    <button class="ghost" data-dr="close" title="Close (Esc)">✕</button></div>
+  ${isNew ? catalogBlock() : ''}
+  <div class="fgrid">
+    <label class="f full">Name <input data-f="name" value="${esc(it.name)}" placeholder="Item name"></label>
+    <label class="f">Quantity <input data-f="qty" type="number" step="any" min="0" value="${esc(it.qty)}"></label>
+    <label class="f">Weight each (lb) <input data-f="weightEach" type="number" step="any" min="0" value="${esc(it.weightEach ?? '')}"></label>
+    <label class="f">Value each <span class="inl"><input data-f="valueN" type="number" step="any" min="0" value="${esc(vp.v)}">
+      <select data-f="valueU" style="flex:none">${['cp', 'sp', 'gp', 'pp'].map(u => `<option ${u === vp.u ? 'selected' : ''}>${u}</option>`).join('')}</select></span></label>
+    <div class="f">Totals <div class="small" id="drTotals" style="padding:6px 0;color:var(--ink)">${fmtW(itemWeight(it))} · ${fmtCp(itemValue(it))}</div></div>
+    <label class="f full">Carried by / Location <select data-f="holderId">${holderOptions(it.holderId, { exclude: ownCont(it) })}</select></label>
+    <label class="f">Type ${typePicker(it)}</label>
+    <label class="f">Rarity <select data-f="rarity"><option value="">—</option>${RARITIES.map(r => `<option ${r === it.rarity ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
+    <div class="full checks">
+      <label><input type="checkbox" data-f="magical" ${it.magical ? 'checked' : ''}> Magical</label>
+      <label><input type="checkbox" data-f="attunement" ${it.attunement ? 'checked' : ''}> Requires attunement</label>
+      <label><input type="checkbox" data-f="identified" ${it.identified !== false ? 'checked' : ''}> Identified</label>
+      <label><input type="checkbox" data-f="equipped" ${it.equipped ? 'checked' : ''}> Equipped / in use</label>
+    </div>
+    ${it.attunement ? `
+    <label class="f full">Attunement requirement <input data-f="attuneNote" value="${esc(it.attuneNote)}" placeholder="e.g. by a wizard"></label>` : ''}
+    <label class="f">Charges <span class="inl"><input data-f="charges" type="number" min="0" value="${esc(it.charges ?? '')}" placeholder="now"> / <input data-f="chargesMax" type="number" min="0" value="${esc(it.chargesMax ?? '')}" placeholder="max"></span></label>
+    <div class="f">Tags ${tagPicker(it)}</div>
+    <label class="f full">Stats <input data-f="stats" value="${esc(it.stats)}" placeholder="e.g. 1d8 slashing · Versatile (1d10)"></label>
+  </div>
+  <div class="sect"><h4>Description</h4><textarea data-f="desc" rows="9" placeholder="What the item does…">${esc(it.desc)}</textarea></div>
+  <div class="sect"><h4>Group notes</h4><textarea data-f="notes" rows="3" placeholder="Where we found it, who wants it, plans to sell…">${esc(it.notes)}</textarea></div>
+  <label class="f" style="margin-top:8px">Source <input data-f="source" value="${esc(it.source)}"></label>
+  ${isNew ? `
+  <div class="sect toolbar"><button class="gold" data-dr="add">Add to inventory</button><button data-dr="close">Cancel</button></div>` : `
+  <div class="sect"><h4>Container</h4>${(() => { const lk = linkedLoc(it);
+    return lk ? `<div class="toolbar"><span class="small">▣ Holds ${holderCount(lk.id)} item(s)</span>
+        <label class="small"><input type="checkbox" data-dr-weightless ${lk.weightless ? 'checked' : ''}> contents weightless</label>
+        <label class="small">capacity <input type="number" min="0" step="any" data-dr-cap value="${esc(lk.capacity ?? '')}" style="width:70px"> lb</label></div>
+        <div class="toolbar" style="margin-top:6px"><button data-dr="unCont" class="danger">Stop being a container</button><span class="small muted">Anything inside is moved to ${esc(holderName(it.holderId))}.</span></div>`
+      : `<div class="toolbar"><button data-dr="makeCont">Make this a container</button><span class="small muted">Backpack, chest, Bag of Holding… other items can then be stored inside it.</span></div>`; })()}</div>
+  <div class="sect toolbar"><button data-dr="dup">Duplicate</button><button data-dr="del" class="danger">Delete item</button>
+    <span class="spacer"></span><span class="small muted">${it.updatedAt > 1000 ? 'Changed ' + esc(fmtTime(it.updatedAt)) + (it.updatedBy ? ' by ' + esc(it.updatedBy) : '') : ''}</span></div>`}`;
+}
+
+/* Type: a real dropdown (no browser text-filtering), with "+ New type…" */
+function typePicker(it) {
+  const list = vocabList('type').map(v => v.name);
+  if (it.type && !list.some(n => n.toLowerCase() === it.type.toLowerCase())) list.push(it.type);
+  if (drawer.newType) return `<span class="inl"><input id="newType" placeholder="New type name"><button class="small gold" data-dr="addType">Add</button><button class="small ghost" data-dr="cancelType">✕</button></span>`;
+  return `<select data-f="type"><option value="">—</option>${list.sort((a, b) => a.localeCompare(b)).map(n => `<option ${n === it.type ? 'selected' : ''}>${esc(n)}</option>`).join('')}<option value="__new">+ New type…</option></select>`;
+}
+/* Tags: chips you can remove + a dropdown to add one (or a new one) */
+function tagPicker(it) {
+  const have = itemTags(it), lc = have.map(t => t.toLowerCase());
+  const avail = vocabList('tag').map(v => v.name).filter(n => !lc.includes(n.toLowerCase()));
+  const chips = have.map(t => `<span class="tchip">${esc(t)}<button class="ghost" data-dr="rmTag" data-tag="${esc(t)}" title="Remove tag">✕</button></span>`).join('');
+  const add = drawer.newTag
+    ? `<span class="inl"><input id="newTag" placeholder="New tag"><button class="small gold" data-dr="addTag">Add</button><button class="small ghost" data-dr="cancelTag">✕</button></span>`
+    : `<select id="tagSel"><option value="">+ Add tag…</option>${avail.map(n => `<option>${esc(n)}</option>`).join('')}<option value="__new">+ New tag…</option></select>`;
+  return `<div class="tagbox">${chips}${add}</div>`;
+}
+function setTags(it, list) {
+  const old = it.tags || '', nw = Array.from(new Set(list.map(s => s.trim()).filter(Boolean))).join(', ');
+  if (old === nw) return;
+  it.tags = nw;
+  if (drawer.mode === 'edit') { logEdit(it, 'tags', old, nw); touch(it); commit(); }
+}
+/* an item that is a container can't be put inside itself */
+function ownCont(it) {
+  const lk = it.id && DB.locations.find(l => l.itemId === it.id);
+  if (!lk) return new Set(); const s = descendantsOf(lk.id); s.add(lk.id); return s;
+}
+function readField(it, el) {
+  const f = el.dataset.f;
+  switch (f) {
+    case 'qty': it.qty = Math.max(0, num(el.value, 0)); break;
+    case 'weightEach': it.weightEach = el.value === '' ? null : Math.max(0, num(el.value)); break;
+    case 'valueN': case 'valueU': {
+      const n = $('[data-f=valueN]', $('#drawer')).value, u = $('[data-f=valueU]', $('#drawer')).value;
+      it.valueCp = n === '' ? null : Math.round(num(n) * COIN_CP[u]); break;
+    }
+    case 'charges': case 'chargesMax': it[f] = el.value === '' ? null : int(el.value); break;
+    case 'magical': case 'attunement': case 'equipped': case 'identified': it[f] = el.checked; break;
+    default: it[f] = el.value;
+  }
+}
+
+function bindDrawer() {
+  const d = $('#drawer');
+  d.addEventListener('change', e => {
+    const el = e.target;
+    if (el.hasAttribute('data-dr-weightless') || el.hasAttribute('data-dr-cap')) {
+      const lk = linkedLoc(curItem()); if (!lk) return;
+      if (el.hasAttribute('data-dr-weightless')) lk.weightless = el.checked; else lk.capacity = el.value === '' ? null : num(el.value);
+      touch(lk); commit(); return;
+    }
+    if (el.dataset.f === 'type' && el.value === '__new') { drawer.newType = true; renderDrawer(); setTimeout(() => $('#newType')?.focus(), 10); return; }
+    if (el.id === 'tagSel') {
+      const it = curItem(); if (!it) return;
+      if (el.value === '__new') { drawer.newTag = true; renderDrawer(); setTimeout(() => $('#newTag')?.focus(), 10); return; }
+      if (el.value) { setTags(it, [...itemTags(it), el.value]); renderDrawer(); }
+      return;
+    }
+    if (el.id === 'vQty' || el.id === 'vChg') { const it = curItem(); if (it) (el.id === 'vQty' ? setQty : setCharges)(it, el.value); return; }
+    if (!el.dataset.f) return;
+    const it = curItem(); if (!it) return;
+    const fk = el.dataset.f === 'valueN' || el.dataset.f === 'valueU' ? 'valueCp' : el.dataset.f;
+    const before = it[fk];
+    readField(it, el);
+    if (drawer.mode === 'edit' && JSON.stringify(before) !== JSON.stringify(it[fk])) {
+      if (fk === 'holderId') logItem('moved', it, { fromId: before, toId: it.holderId }); else logEdit(it, fk, before, it[fk]);
+    }
+    const rerender = ['attunement', 'qty'].includes(el.dataset.f);
+    if (drawer.mode === 'edit') { touch(it); commit(); }
+    if (rerender) renderDrawer();
+    else { $('#drTotals') && ($('#drTotals').textContent = `${fmtW(itemWeight(it))} · ${fmtCp(itemValue(it))}`); if (el.dataset.f === 'name' && drawer.mode === 'edit') $('#drTitle').textContent = it.name || '(unnamed)'; }
+  });
+  let cT;
+  d.addEventListener('input', e => {
+    if (e.target.id === 'catQ') {
+      drawer.catQ = e.target.value; clearTimeout(cT);
+      cT = setTimeout(() => { const r = $('#catRes'); if (r) r.innerHTML = catResHtml(catalogSearch(drawer.catQ, drawer.catSrc)); }, 120);
+    }
+  });
+  d.addEventListener('change', e => {
+    if (e.target.id === 'catSrc') { drawer.catSrc = e.target.value; $('#catRes').innerHTML = catResHtml(catalogSearch(drawer.catQ, drawer.catSrc)); }
+  });
+  d.addEventListener('keydown', e => {
+    if ((e.target.id === 'vQty' || e.target.id === 'vChg') && e.key === 'Enter') e.target.blur();
+    if (e.target.id === 'newType' && e.key === 'Enter') { e.preventDefault(); d.querySelector('[data-dr=addType]').click(); }
+    if (e.target.id === 'newTag' && e.key === 'Enter') { e.preventDefault(); d.querySelector('[data-dr=addTag]').click(); }
+    if (e.target.id === 'catQ' && e.key === 'Enter') { const first = $('[data-cat]', d); if (first) first.click(); }
+  });
+  d.addEventListener('click', e => {
+    const cat = e.target.closest('[data-cat]');
+    if (cat) {
+      const c = CAT_BY_INDEX.get(cat.dataset.cat); if (!c) return;
+      const keep = { qty: drawer.draft.qty, holderId: drawer.draft.holderId, notes: drawer.draft.notes, tags: drawer.draft.tags };
+      applyCatalog(drawer.draft, c); Object.assign(drawer.draft, keep);
+      drawer.catQ = ''; renderDrawer(); $('[data-f=qty]', d)?.focus(); return;
+    }
+    const gi = e.target.closest('[data-goitem]'); if (gi) { openItem(gi.dataset.goitem); return; }
+    const b = e.target.closest('[data-dr]'); if (!b) return;
+    const it = curItem();
+    switch (b.dataset.dr) {
+      case 'close': closeDrawer(); break;
+      case 'addType': {
+        const n = $('#newType').value.trim(); drawer.newType = false;
+        if (n) { const v = addVocab('type', n); const old = it.type; it.type = v.name; if (drawer.mode === 'edit' && old !== it.type) { logEdit(it, 'type', old, it.type); touch(it); } commit(); }
+        renderDrawer(); break;
+      }
+      case 'cancelType': drawer.newType = false; renderDrawer(); break;
+      case 'addTag': {
+        const n = $('#newTag').value.trim(); drawer.newTag = false;
+        if (n) { const v = addVocab('tag', n); setTags(it, [...itemTags(it), v.name]); if (drawer.mode !== 'edit') commit({ keep: [prefs.tab] }); }
+        renderDrawer(); break;
+      }
+      case 'cancelTag': drawer.newTag = false; renderDrawer(); break;
+      case 'rmTag': setTags(it, itemTags(it).filter(t => t !== b.dataset.tag)); renderDrawer(); break;
+      case 'edit': drawer.mode = 'edit'; renderDrawer(); d.scrollTop = 0; break;
+      case 'done': drawer.mode = 'view'; renderDrawer(); d.scrollTop = 0; break;
+      case 'chg-': case 'chg+': setCharges(it, int(it.charges) + (b.dataset.dr === 'chg+' ? 1 : -1)); break;
+      case 'q-': case 'q+': setQty(it, num(it.qty) + (b.dataset.dr === 'q+' ? 1 : -1)); break;
+      case 'addInto': { const lk = linkedLoc(it); if (lk) newItem(lk.id); break; }
+      case 'unCont': {
+        if (!armed(b)) return;
+        const lk = linkedLoc(it); if (!lk) return;
+        removeLocation(lk.id, it.holderId); logItem('container', it, { text: 'no longer a container — contents moved to ' + holderLabel(it.holderId) }); commit(); renderDrawer(); toast(`${it.name} is no longer a container`); break;
+      }
+      case 'add': {
+        if (!it.name.trim()) { $('[data-f=name]', d).focus(); toast('Give the item a name first'); return; }
+        // stack onto an identical plain item at the same holder
+        const twin = DB.items.find(x => x.name === it.name && x.holderId === it.holderId && (x.catalogIndex || '') === (it.catalogIndex || '')
+          && !num(x.chargesMax) && !num(it.chargesMax) && (x.notes || '') === '' && (it.notes || '') === '');
+        if (twin) { twin.qty = num(twin.qty) + num(it.qty); touch(twin); logItem('added', twin, { qty: num(it.qty), toId: twin.holderId, text: `+${num(it.qty)} to ${holderLabel(twin.holderId)} (stack now ${twin.qty})` }); toast(`Stacked with existing ${twin.name} (now ${twin.qty})`); }
+        else { const n = Object.assign({}, it, { id: uid('it'), createdAt: now() }); touch(n); DB.items.push(n); logItem('added', n, { toId: n.holderId }); toast(`Added ${n.name} → ${holderName(n.holderId)}`); }
+        commit();
+        const h = it.holderId; newItem(h); // keep drawer open for fast entry
+        break;
+      }
+      case 'transfer': {
+        const q = num($('#trQty', d).value), to = $('#trTo', d).value;
+        if (q <= 0) return;
+        logItem('moved', it, { qty: Math.min(q, num(it.qty)), fromId: it.holderId, toId: to });
+        if (q >= num(it.qty)) { it.holderId = to; touch(it); }
+        else {
+          it.qty = +(num(it.qty) - q).toFixed(4); touch(it);
+          const twin = DB.items.find(x => x.id !== it.id && x.name === it.name && x.holderId === to && (x.catalogIndex || '') === (it.catalogIndex || ''));
+          if (twin) { twin.qty = num(twin.qty) + q; touch(twin); }
+          else { const n = Object.assign({}, it, { id: uid('it'), qty: q, holderId: to, equipped: false, createdAt: now() }); touch(n); DB.items.push(n); }
+        }
+        commit(); renderDrawer(); toast(`Moved ${q} × ${it.name} to ${holderName(to)}`); break;
+      }
+      case 'makeCont': {
+        const l = { id: 'loc_' + it.id, name: it.name, kind: 'container', parentId: it.holderId, capacity: null, selfWeight: 0,
+          weightless: /holding|haversack|portable hole|bag of tricks/i.test(it.name), notes: '', order: now(), itemId: it.id };
+        touch(l); DB.locations.push(l); logItem('container', it, { text: 'made into a container' }); commit(); renderDrawer(); toast(`${it.name} can now hold items`); break;
+      }
+      case 'openCont': { const lk = DB.locations.find(l => l.itemId === it.id); if (lk) { closeDrawer(); openLoc = lk.id; showTab('loc'); } break; }
+      case 'dup': { const n = Object.assign({}, it, { id: uid('it'), createdAt: now() }); touch(n); DB.items.push(n); logItem('added', n, { toId: n.holderId, text: 'duplicated, at ' + holderLabel(n.holderId) }); commit(); openItem(n.id); toast('Duplicated'); break; }
+      case 'del': {
+        if (!armed(b)) return;
+        const lk = linkedLoc(it);
+        deleteItem(it); closeDrawer(); commit(); toast(`Deleted ${it.name}${lk ? ' — its contents were moved to ' + holderName(it.holderId) : ''}`); break;
+      }
+    }
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#drawer').classList.contains('open')) closeDrawer(); });
+}
+
+/* =================== CONTAINERS & LOCATIONS TAB =================== */
+function capBar(load, cap) {
+  if (!cap) return '';
+  const pct = Math.min(100, load / cap * 100);
+  return `<div class="bar" title="${fmtW(load)} of ${cap} lb"><i class="${load > cap ? 'over' : pct > 66 ? 'hi' : ''}" style="width:${pct}%"></i></div>`;
+}
+function holderCard(id) {
+  const p = getPlayer(id), l = getLoc(id);
+  const icon = p ? '<span class="pdot" style="background:' + esc(p.color || '#9c7020') + '"></span>' : `<span class="ico">${LOC_ICON[l.kind] || '⌂'}</span>`;
+  const sub = p ? (p.playerName ? 'Played by ' + esc(p.playerName) : 'Character')
+    : (LOC_KINDS[l.kind] || '').replace(/^\S+\s/, '') + (l.parentId ? ' · ' + (getPlayer(l.parentId) ? 'carried by ' : 'at ') + esc(holderName(l.parentId)) : '');
+  const load = p ? holderLoad(id) : holderContentsWeight(id);
+  const cap = capacityOf(id);
+  const inner = DB.locations.filter(x => x.parentId === id).length;
+  const border = p ? `style="border-top-color:${esc(p.color || '#c9a14a')}"` : '';
+  return `<div class="card" data-open="${esc(id)}" ${border}>
+    <h3>${icon} ${esc(holderName(id))}</h3>
+    <div class="small muted">${sub}</div>
+    <div class="stats small"><span><b>Items</b>${holderCount(id)}</span><span><b>Weight</b>${fmtW(load)}${cap ? ' / ' + cap + ' lb' : ''}</span><span><b>Value</b>${fmtCp(holderValue(id))}</span>${inner ? `<span><b>Holds</b>${inner} container${inner === 1 ? '' : 's'}</span>` : ''}</div>
+    ${capBar(load, cap)}
+  </div>`;
+}
+
+function renderLocations() {
+  const root = $('#tab-loc');
+  if (openLoc && !getPlayer(openLoc) && !getLoc(openLoc) && openLoc !== '__none') openLoc = '';
+  if (openLoc) { root.innerHTML = containerView(openLoc); return; }
+  const pl = sortedPlayers(), lo = sortedLocs();
+  const top = lo.filter(l => !l.parentId || !(getLoc(l.parentId) || getPlayer(l.parentId)));
+  const carried = lo.filter(l => getPlayer(l.parentId));
+  const nested = lo.filter(l => getLoc(l.parentId));
+  const unassigned = DB.items.filter(i => !i.holderId).length;
+  root.innerHTML = `
+    <div class="panel"><div class="toolbar"><span class="muted small">Click a card to open it and see everything stored inside (including nested containers). Add or edit locations in Settings.</span>
+      <span class="spacer"></span><button data-act="addLoc">+ New container / location</button></div></div>
+    ${pl.length ? `<h3 class="cinzel" style="margin:6px 0 8px;color:var(--gold)">Characters</h3><div class="cards">${pl.map(p => holderCard(p.id)).join('')}</div>` : ''}
+    <h3 class="cinzel" style="margin:18px 0 8px;color:var(--gold)">Locations &amp; vehicles</h3>
+    <div class="cards">${top.map(l => holderCard(l.id)).join('') || '<p class="muted">None yet.</p>'}
+      ${unassigned ? `<div class="card" data-open="__none"><h3><span class="ico">?</span> Unassigned</h3><div class="small muted">Items with no holder</div><div class="stats small"><span><b>Items</b>${unassigned}</span></div></div>` : ''}</div>
+    ${carried.length || nested.length ? `<h3 class="cinzel" style="margin:18px 0 8px;color:var(--gold)">Containers inside / carried</h3><div class="cards">${[...carried, ...nested].map(l => holderCard(l.id)).join('')}</div>` : ''}`;
+}
+
+function containerView(id) {
+  if (id === '__none') {
+    const list = sortItems(DB.items.filter(i => !i.holderId));
+    return `<div class="crumbs"><a data-open="">All</a> › <span>Unassigned</span></div>${bulkBar()}${itemsTable(list, ['sel', 'name', 'qty', 'weight', 'value', 'type', 'rarity'], { nogroup: true })}`;
+  }
+  const p = getPlayer(id), l = getLoc(id);
+  const path = holderPath(id);
+  const crumbs = `<div class="crumbs"><a data-open="">All</a>${path.map((h, i) => ' › ' + (i === path.length - 1 ? `<span>${esc(holderName(h))}</span>` : `<a data-open="${esc(h)}">${esc(holderName(h))}</a>`)).join('')}</div>`;
+  const direct = sortItems(DB.items.filter(i => i.holderId === id));
+  const subs = sortedLocs().filter(x => x.parentId === id);
+  const load = p ? holderLoad(id) : holderContentsWeight(id), cap = capacityOf(id);
+  const coins = purseOf(id);
+  let head = `<div class="panel" style="border-top:4px solid ${p ? esc(p.color || 'var(--gold2)') : 'var(--gold2)'}">
+    <div class="toolbar"><h2 style="color:var(--gold)">${p ? '' : (LOC_ICON[l.kind] || '') + ' '}${esc(holderName(id))}</h2>
+      <span class="muted small">${p ? (p.playerName ? 'Played by ' + esc(p.playerName) : 'Character') : esc((LOC_KINDS[l.kind] || '').replace(/^\S+\s/, '')) + (l.parentId ? ' · at ' + esc(holderLabel(l.parentId)) : '')}</span>
+      <span class="spacer"></span>
+      <button class="gold" data-act="newItem" data-holder="${esc(id)}">+ Add item here</button>
+      <button data-act="addLoc" data-parent="${esc(id)}">+ Container inside</button>
+      <button data-act="filterInv" data-holder="${esc(id)}" title="Open in the inventory table with filters">View in table</button></div>
+    <div class="stats"><span><b>Items (all nested)</b>${holderCount(id)}</span>
+      <span><b>${p ? 'Carried load' : 'Contents weight'}</b>${fmtW(load)}${cap ? ' / ' + cap + ' lb' : ''}</span>
+      <span><b>Item value</b>${fmtCp(holderValue(id))}</span>
+      ${coins && coinValue(coins) ? `<span><b>Coins</b>${COINS.filter(c => coins[c]).map(c => coins[c] + ' ' + c).join(', ')}</span>` : ''}
+      ${l && num(l.selfWeight) ? `<span><b>Own weight</b>${fmtW(num(l.selfWeight))}</span>` : ''}
+      ${l && l.weightless ? '<span class="muted small">Contents don\'t burden whoever carries it</span>' : ''}</div>
+    ${capBar(load, cap)}
+    ${(p || l).notes ? `<div class="desc" style="margin-top:8px">${esc((p || l).notes)}</div>` : ''}
+  </div>`;
+  const subHtml = subs.length ? `<h3 class="cinzel" style="margin:4px 0 8px;color:var(--gold)">Containers inside</h3><div class="cards" style="margin-bottom:14px">${subs.map(s => holderCard(s.id)).join('')}</div>` : '';
+  return crumbs + head + subHtml + `<h3 class="cinzel" style="margin:4px 0 8px;color:var(--gold)">Stored directly here</h3>` + bulkBar() +
+    itemsTable(direct, ['sel', 'name', 'qty', 'weight', 'value', 'type', 'rarity'], { nogroup: true, empty: 'Nothing stored directly here.' });
+}
+
+function addLocation(parentId = '') {
+  const l = { id: uid('loc'), name: 'New container', kind: parentId ? 'container' : 'location', parentId, capacity: null, selfWeight: 0, weightless: false, notes: '', order: now() };
+  touch(l); DB.locations.push(l); logEvent('settings', { text: parentId ? `container added inside ${holderName(parentId)}` : 'location added' }); commit(); return l;
+}
+
+function bindLocations() {
+  const root = $('#tab-loc');
+  root.addEventListener('dblclick', rowDblClick);
+  root.addEventListener('click', e => {
+    const t = e.target;
+    if (t.matches('input[type=checkbox]')) return;
+    const th = t.closest('th[data-sort]');
+    if (th) { const k = th.dataset.sort; if (prefs.sort.key === k) prefs.sort.dir *= -1; else { prefs.sort.key = k; prefs.sort.dir = 1; } savePrefs(); renderLocations(); return; }
+    const ab = t.closest('[data-act]');
+    if (ab) {
+      const a = ab.dataset.act;
+      if (a === 'addLoc') { const l = addLocation(ab.dataset.parent || ''); prefs.setTab = 'locs'; showTab('set'); setTimeout(() => { const i = $(`[data-lid="${l.id}"][data-k=name]`); if (i) { i.focus(); i.select(); i.scrollIntoView({ block: 'center' }); } }, 50); return; }
+      if (a === 'filterInv') { prefs.filters = { q: '', holder: ab.dataset.holder, nested: true, type: '', rarity: '', magic: '', attune: '', tag: '' }; savePrefs(); showTab('inv'); return; }
+      handleAct(a, ab, root); return;
+    }
+    const op = t.closest('[data-open]');
+    if (op) { openLoc = op.dataset.open; sel.clear(); renderLocations(); window.scrollTo(0, 0); return; }
+    if (qtyClick(t)) return;
+    const tr = t.closest('tr[data-item]'); if (tr) openItem(tr.dataset.item);
+  });
+  root.addEventListener('change', e => {
+    const t = e.target;
+    if (t.dataset.sel !== undefined) { t.checked ? sel.add(t.dataset.sel) : sel.delete(t.dataset.sel); renderLocations(); }
+    else if (t.hasAttribute('data-selall')) { $$('tr[data-item]', root).forEach(r => t.checked ? sel.add(r.dataset.item) : sel.delete(r.dataset.item)); renderLocations(); }
+  });
+}
+
+/* =================== CURRENCY TAB =================== */
+function ensurePurse(holderId) {
+  let p = purseOf(holderId);
+  if (!p) { p = { id: 'cur_' + holderId, holderId, pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 }; touch(p); DB.purses.push(p); }
+  return p;
+}
+function purseRows() {
+  const ids = ['party', ...sortedPlayers().map(p => p.id), ...sortedLocs().filter(l => purseOf(l.id)).map(l => l.id)];
+  return ids;
+}
+function coinStr(o) { return COINS.filter(c => int(o[c])).map(c => `${int(o[c])} ${c}`).join(', ') || '0'; }
+
+function renderCurrency() {
+  const ids = purseRows();
+  const tot = Object.fromEntries(COINS.map(c => [c, 0]));
+  DB.purses.forEach(p => COINS.forEach(c => tot[c] += int(p[c])));
+  const totalCoins = DB.purses.reduce((s, p) => s + coinValue(p), 0);
+  const totalItems = DB.items.reduce((s, i) => s + itemValue(i), 0);
+  const locNoPurse = sortedLocs().filter(l => !purseOf(l.id));
+  const led = DB.ledger.slice().sort((a, b) => num(b.ts) - num(a.ts)).slice(0, 150);
+  $('#tab-cur').innerHTML = `
+  <div class="panel"><h2>Purses</h2>
+    <div class="tablewrap"><table class="coins"><thead><tr><th class="nosort">Holder</th>${COINS.map(c => `<th class="nosort right coin-h c-${c}">${c}</th>`).join('')}<th class="nosort right">Worth</th><th class="nosort right">Coin weight</th></tr></thead>
+    <tbody>${ids.map(id => {
+      const p = purseOf(id) || { pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 };
+      return `<tr><td><b>${esc(holderName(id))}</b></td>${COINS.map(c => `<td class="right"><input type="number" step="1" data-purse="${esc(id)}" data-coin="${c}" value="${int(p[c])}"></td>`).join('')}
+        <td class="num"><b>${fmtGp(coinValue(p))}</b></td><td class="num muted">${fmtW(coinCount(p) / (num(DB.meta.coinsPerLb, 50) || 50))}</td></tr>`;
+    }).join('')}</tbody>
+    <tfoot><tr><td>Total</td>${COINS.map(c => `<td class="num">${tot[c].toLocaleString('en-US')}</td>`).join('')}<td class="num">${fmtGp(totalCoins)}</td><td></td></tr></tfoot></table></div>
+    ${locNoPurse.length ? `<div class="toolbar" style="margin-top:8px"><span class="small muted">Add a purse for a location (bank, chest…)</span><select id="newPurse">${locNoPurse.map(l => `<option value="${esc(l.id)}">${esc(holderLabel(l.id))}</option>`).join('')}</select><button data-cur="addPurse">Add</button></div>` : ''}
+    <p class="small muted">Edit a number directly to correct a purse, or use a transaction below so it's logged. Coin weight: ${num(DB.meta.coinsPerLb, 50)} coins = 1 lb${DB.meta.coinWeight ? ' (counted in carried load)' : ' (not counted)'}.</p>
+  </div>
+  <div class="settings-grid">
+  <div class="panel"><h2>Transaction</h2>
+    <div class="fgrid">
+      <label class="f">From <select id="txFrom"><option value="">— Outside (loot, reward, sale) —</option><option value="party">Party Fund</option>${sortedPlayers().map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}${sortedLocs().filter(l => purseOf(l.id)).map(l => `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join('')}</select></label>
+      <label class="f">To <select id="txTo"><option value="party">Party Fund</option>${sortedPlayers().map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}${sortedLocs().filter(l => purseOf(l.id)).map(l => `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join('')}<option value="">— Outside (spent, lost) —</option></select></label>
+      <div class="full inl coins">${COINS.map(c => `<label class="f"><span class="coin-h c-${c}">${c}</span><input type="number" min="0" step="1" data-tx="${c}" placeholder="0"></label>`).join('')}</div>
+      <label class="f full">Note <input id="txNote" placeholder="e.g. Sold the ogre's greataxe, paid the inn…"></label>
+      <label class="full checks"><label><input type="checkbox" id="txChange" checked> Make change if the exact coins are missing (pays by value, change in gp/sp/cp)</label></label>
+      <div class="full toolbar"><button class="gold" data-cur="apply">Apply</button><span id="txMsg" class="warn"></span></div>
+    </div>
+  </div>
+  <div class="panel"><h2>Split the Party Fund</h2>
+    <p class="help">Divides each coin type evenly between the chosen characters; the remainder stays in the Party Fund.</p>
+    <div class="checks">${sortedPlayers().map(p => `<label><input type="checkbox" data-split="${esc(p.id)}" checked> ${esc(p.name)}</label>`).join('') || '<span class="muted">Add characters in Settings first.</span>'}</div>
+    <div class="toolbar" style="margin-top:10px"><button data-cur="split" ${DB.players.length ? '' : 'disabled'}>Split now</button><span class="small muted">Party Fund: ${coinStr(purseOf('party') || {})}</span></div>
+    <h3 class="cinzel" style="margin:16px 0 6px;color:var(--gold);font-size:14px">Party wealth</h3>
+    <div class="stats"><span><b>Coins</b>${fmtGp(totalCoins)}</span><span><b>Items</b>${fmtCp(totalItems)}</span><span><b>Total</b>${fmtGp(totalCoins + totalItems)}</span></div>
+  </div>
+  </div>
+  <div class="panel"><h2>Ledger</h2><div class="ledger">${led.length ? led.map(l => `<div><span class="muted">${esc(fmtTime(l.ts))}</span> · <b>${esc(l.fromId === undefined ? '' : (l.fromId ? holderName(l.fromId) : 'Outside'))} → ${esc(l.toId ? holderName(l.toId) : 'Outside')}</b> · ${esc(coinStr(l.coins || {}))}${l.note ? ' · <i>' + esc(l.note) + '</i>' : ''}${l.by ? ' <span class="muted">(' + esc(l.by) + ')</span>' : ''}</div>`).join('') : '<span class="muted">No transactions yet.</span>'}</div></div>`;
+}
+
+/* take `coins` from purse p; returns false if not enough value */
+function takeCoins(p, coins, makeChange) {
+  const exact = COINS.every(c => int(p[c]) >= int(coins[c]));
+  if (exact) { COINS.forEach(c => p[c] = int(p[c]) - int(coins[c])); return true; }
+  if (!makeChange) return false;
+  const need = COINS.reduce((s, c) => s + int(coins[c]) * COIN_CP[c], 0);
+  if (coinValue(p) < need) return false;
+  // use the requested coins we do have, then pay the rest smallest coin first, getting change back
+  let owed = 0;
+  COINS.forEach(c => { const use = Math.min(int(p[c]), int(coins[c])); p[c] = int(p[c]) - use; owed += (int(coins[c]) - use) * COIN_CP[c]; });
+  for (const c of ['cp', 'sp', 'ep', 'gp', 'pp']) {
+    if (owed <= 0) break;
+    const val = COIN_CP[c];
+    if (val <= owed) { const k = Math.min(int(p[c]), Math.floor(owed / val)); p[c] -= k; owed -= k * val; }
+    if (owed > 0 && owed < val && int(p[c]) > 0) {
+      p[c] -= 1; let change = val - owed; owed = 0;
+      p.gp = int(p.gp) + Math.floor(change / 100); change %= 100; p.sp = int(p.sp) + Math.floor(change / 10); p.cp = int(p.cp) + change % 10;
+    }
+  }
+  return owed <= 0;
+}
+
+function bindCurrency() {
+  const root = $('#tab-cur');
+  root.addEventListener('change', e => {
+    const t = e.target;
+    if (t.dataset.purse) { const p = ensurePurse(t.dataset.purse); p[t.dataset.coin] = int(t.value); touch(p); commit({ defer: true }); }
+  });
+  root.addEventListener('click', e => {
+    const b = e.target.closest('[data-cur]'); if (!b) return;
+    const msg = $('#txMsg');
+    switch (b.dataset.cur) {
+      case 'addPurse': { ensurePurse($('#newPurse').value); commit(); break; }
+      case 'apply': {
+        const from = $('#txFrom').value, to = $('#txTo').value;
+        const coins = Object.fromEntries(COINS.map(c => [c, Math.max(0, int($(`[data-tx=${c}]`).value))]));
+        if (!COINS.some(c => coins[c])) { msg.textContent = 'Enter an amount.'; return; }
+        if (from === to) { msg.textContent = 'From and To are the same.'; return; }
+        if (from) {
+          const p = ensurePurse(from);
+          const backup = Object.assign({}, p);
+          if (!takeCoins(p, coins, $('#txChange').checked)) { Object.assign(p, backup); msg.textContent = `${holderName(from)} doesn't have enough.`; return; }
+          touch(p);
+        }
+        if (to) { const p = ensurePurse(to); COINS.forEach(c => p[c] = int(p[c]) + coins[c]); touch(p); }
+        const le = { id: uid('led'), ts: now(), fromId: from, toId: to, coins, note: $('#txNote').value.trim(), by: meName() }; touch(le); DB.ledger.push(le);
+        logEvent('coins', { text: `${coinStr(coins)}: ${from ? holderName(from) : 'Outside'} → ${to ? holderName(to) : 'Outside'}`, note: le.note });
+        commit(); toast('Transaction recorded'); break;
+      }
+      case 'split': {
+        const ids = $$('[data-split]', root).filter(x => x.checked).map(x => x.dataset.split);
+        if (!ids.length) return;
+        const pf = ensurePurse('party'); const share = {};
+        COINS.forEach(c => { share[c] = Math.floor(int(pf[c]) / ids.length); pf[c] = int(pf[c]) - share[c] * ids.length; });
+        if (!COINS.some(c => share[c])) { toast('Nothing to split'); return; }
+        touch(pf);
+        ids.forEach(id => { const p = ensurePurse(id); COINS.forEach(c => p[c] = int(p[c]) + share[c]); touch(p);
+          const le = { id: uid('led'), ts: now(), fromId: 'party', toId: id, coins: Object.assign({}, share), note: 'Split of Party Fund', by: meName() }; touch(le); DB.ledger.push(le); });
+        logEvent('coins', { text: `Party Fund split between ${ids.map(holderName).join(', ')}: ${coinStr(share)} each` });
+        commit(); toast(`Split between ${ids.length} characters`); break;
+      }
+    }
+  });
+}
+
+/* =================== SETTINGS TAB =================== */
+const SET_TABS = [['chars', '☺', 'Characters'], ['locs', '⌂', 'Locations'], ['vocab', '❖', 'Types & Tags'], ['rules', '⚖', 'Rules & browser'], ['sync', '☁', 'Live sync'], ['data', '⛁', 'Data']];
+function showSetTab(k) { prefs.setTab = k; savePrefs(); if (prefs.tab !== 'set') showTab('set'); else renderSettings(); }
+function vocabSection() {
+  const block = (kind, title, help) => {
+    const list = vocabList(kind);
+    const used = n => kind === 'type' ? DB.items.filter(i => (i.type || '').toLowerCase() === n.toLowerCase()).length
+      : DB.items.filter(i => itemTags(i).some(t => t.toLowerCase() === n.toLowerCase())).length;
+    return `<div class="panel"><h2>${title} <span class="muted small">(${list.length})</span></h2>
+      <p class="help">${help}</p>
+      <div class="toolbar" style="margin-bottom:8px"><input id="vocNew_${kind}" placeholder="New ${kind} name" style="flex:1;max-width:260px"><button class="gold" data-voc="add" data-kind="${kind}">+ Add ${kind}</button></div>
+      <div class="vlistbox">${list.map(v => { const n = used(v.name); return `<div class="vrow">
+        <input data-vid="${esc(v.id)}" value="${esc(v.name)}" title="Rename — items using it are updated">
+        <a class="vcount ${n ? '' : 'muted'}" data-voc="show" data-kind="${kind}" data-name="${esc(v.name)}" title="Show these items in the inventory">${n} item${n === 1 ? '' : 's'}</a>
+        <button class="small ghost danger" data-voc="del" data-id="${esc(v.id)}" title="Delete${n ? ' — also removes it from ' + n + ' item' + (n === 1 ? '' : 's') : ''}">✕</button></div>`; }).join('') || '<p class="muted">None yet.</p>'}</div></div>`;
+  };
+  return `<div class="settings-grid">${block('type', 'Item types', 'Shown in the Type dropdown on the item card and in the Type filter. Renaming a type renames it on every item.')}${block('tag', 'Tags', 'Pick tags on the item card; filter by tag in the inventory. Renaming a tag renames it on every item.')}</div>`;
+}
+function renameVocab(v, nw) {
+  nw = nw.trim(); const old = v.name; if (!nw || nw === old) return false;
+  const dup = vocabFind(v.kind, nw);
+  DB.items.forEach(it => {
+    if (v.kind === 'type' && (it.type || '').toLowerCase() === old.toLowerCase()) { it.type = dup ? dup.name : nw; touch(it); }
+    if (v.kind === 'tag' && itemTags(it).some(t => t.toLowerCase() === old.toLowerCase())) { it.tags = Array.from(new Set(itemTags(it).map(t => t.toLowerCase() === old.toLowerCase() ? (dup ? dup.name : nw) : t))).join(', '); touch(it); }
+  });
+  if (dup && dup !== v) { DB.vocab = DB.vocab.filter(x => x !== v); tombstone(v.id); }   // merged into an existing one
+  else { v.name = nw; touch(v); }
+  logEvent('settings', { text: `${v.kind} renamed: ${old} → ${nw}${dup && dup !== v ? ' (merged)' : ''}` });
+  return true;
+}
+function deleteVocab(v) {
+  let n = 0;
+  DB.items.forEach(it => {
+    if (v.kind === 'type' && (it.type || '').toLowerCase() === v.name.toLowerCase()) { it.type = ''; touch(it); n++; }
+    if (v.kind === 'tag' && itemTags(it).some(t => t.toLowerCase() === v.name.toLowerCase())) { it.tags = itemTags(it).filter(t => t.toLowerCase() !== v.name.toLowerCase()).join(', '); touch(it); n++; }
+  });
+  DB.vocab = DB.vocab.filter(x => x !== v); tombstone(v.id);
+  logEvent('settings', { text: `${v.kind} deleted: ${v.name}${n ? ` (removed from ${n} item${n === 1 ? '' : 's'})` : ''}` });
+}
+function renderSettings() {
+  const pl = sortedPlayers(), lo = sortedLocs();
+  const st = SET_TABS.some(x => x[0] === prefs.setTab) ? prefs.setTab : 'chars';
+  $('#tab-set').innerHTML = `
+  <nav class="tabs subtabs">${SET_TABS.map(([k, ic, l]) => `<button data-settab="${k}" class="${k === st ? 'on' : ''}"><span class="ti">${ic}</span>${l}</button>`).join('')}</nav>
+  <div class="subpage">
+  ${st === 'chars' ? `
+  <div class="panel"><h2>Characters</h2>
+    <p class="help">These names appear in "Carried by" and the currency purses. STR score is used for carrying capacity (STR × 15 lb).</p>
+    <div class="sgrid"><div class="srow pl shead"><span>Character name</span><span>Player</span><span>STR</span><span>Colour</span><span>Notes</span><span></span></div>
+    ${pl.map((p, i) => `<div class="srow pl">
+      <input aria-label="Character name" data-pid="${esc(p.id)}" data-k="name" value="${esc(p.name)}">
+      <input aria-label="Player" data-pid="${esc(p.id)}" data-k="playerName" value="${esc(p.playerName || '')}">
+      <input aria-label="STR" type="number" min="1" max="30" data-pid="${esc(p.id)}" data-k="str" value="${esc(p.str ?? '')}">
+      <input aria-label="Colour" type="color" data-pid="${esc(p.id)}" data-k="color" value="${esc(p.color || '#9c7020')}">
+      <input aria-label="Notes" data-pid="${esc(p.id)}" data-k="notes" value="${esc(p.notes || '')}">
+      <div class="rowbtns"><button class="small" data-set="pUp" data-id="${esc(p.id)}" ${i ? '' : 'disabled'} title="Move up">▲</button><button class="small" data-set="pDown" data-id="${esc(p.id)}" ${i < pl.length - 1 ? '' : 'disabled'} title="Move down">▼</button><button class="small danger" data-set="pDel" data-id="${esc(p.id)}" title="Delete">✕</button></div>
+    </div>`).join('') || '<p class="muted">No characters yet.</p>'}</div>
+    <div class="toolbar" style="margin-top:8px"><button class="gold" data-set="pAdd">+ Add character</button></div>
+  </div>
+  ` : ''}${st === 'locs' ? `
+
+  <div class="panel"><h2>Locations, containers &amp; vehicles</h2>
+    <p class="help">Anything that can hold items: a place (camp, bank, ship hold), a container (backpack, chest, Bag of Holding) or a vehicle/mount (wagon, mule). "Kept at / carried by" lets you nest them — a backpack carried by a character, a chest in the wagon. Tick <b>weightless</b> when the contents shouldn't count towards whoever carries it (Bag of Holding, a wagon, a place).</p>
+    <div class="sgrid"><div class="srow lo shead"><span>Name</span><span>Type</span><span>Kept at / carried by</span><span>Capacity lb</span><span>Own weight</span><span class="c">Weightless</span><span>Notes</span><span></span></div>
+    ${lo.map((l, i) => {
+      const bad = descendantsOf(l.id); bad.add(l.id);
+      const linked = l.itemId && getItem(l.itemId);
+      return `<div class="srow lo">
+      <input aria-label="Name" data-lid="${esc(l.id)}" data-k="name" value="${esc(l.name)}">
+      <select aria-label="Type" data-lid="${esc(l.id)}" data-k="kind">${Object.entries(LOC_KINDS).map(([k, v]) => `<option value="${k}" ${k === l.kind ? 'selected' : ''}>${v}</option>`).join('')}</select>
+      <select aria-label="Kept at / carried by" data-lid="${esc(l.id)}" data-k="parentId">${holderOptions(l.parentId, { exclude: bad, noneLabel: '— top level —' })}</select>
+      <input aria-label="Capacity lb" type="number" min="0" step="any" data-lid="${esc(l.id)}" data-k="capacity" value="${esc(l.capacity ?? '')}">
+      <input aria-label="Own weight" type="number" min="0" step="any" data-lid="${esc(l.id)}" data-k="selfWeight" value="${esc(linked ? (getItem(l.itemId).weightEach ?? '') : (l.selfWeight || ''))}">
+      <span class="c" title="Contents don't add to the carrier's load"><input aria-label="Weightless" type="checkbox" data-lid="${esc(l.id)}" data-k="weightless" ${l.weightless ? 'checked' : ''}></span>
+      <input aria-label="Notes" data-lid="${esc(l.id)}" data-k="notes" value="${esc(l.notes || '')}">
+      <div class="rowbtns">${linked ? `<button class="small itembadge" data-set="lUnItem" data-id="${esc(l.id)}" title="Listed as an inventory item — click to remove it from the item list (the location is kept)">▣ item</button>` : `<button class="small" data-set="lItem" data-id="${esc(l.id)}" title="Also list it as an item (so it shows in the carrier's items)">+ item</button>`}<button class="small" data-set="lUp" data-id="${esc(l.id)}" ${i ? '' : 'disabled'} title="Move up">▲</button><button class="small" data-set="lDown" data-id="${esc(l.id)}" ${i < lo.length - 1 ? '' : 'disabled'} title="Move down">▼</button><button class="small danger" data-set="lDel" data-id="${esc(l.id)}" title="Delete — items inside move to where it was kept">✕</button></div>
+    </div>`; }).join('') || '<p class="muted">No locations yet.</p>'}</div>
+    <div class="toolbar" style="margin-top:8px"><button class="gold" data-set="lAdd">+ Add location / container</button></div>
+  </div>
+  ` : ''}${st === 'vocab' ? vocabSection() : ''}${st === 'rules' ? `
+
+  <div class="settings-grid">
+  <div class="panel"><h2>Party rules</h2>
+    <div class="fgrid">
+      <label class="f full">Campaign / party name <input data-meta="name" value="${esc(DB.meta.name)}"></label>
+      <label class="f">Coins per lb <input type="number" min="1" data-meta="coinsPerLb" value="${esc(DB.meta.coinsPerLb)}"></label>
+      <label class="full checks"><label><input type="checkbox" data-meta="coinWeight" ${DB.meta.coinWeight ? 'checked' : ''}> Count coin weight in carried load</label></label>
+    </div>
+  </div>
+
+  <div class="panel"><h2>This browser</h2>
+    <div class="fgrid">
+      <label class="f">I am <select id="setMe">${playerOptions(prefs.me, '— choose —')}<option value="dm" ${prefs.me === 'dm' ? 'selected' : ''}>DM</option></select></label>
+      <label class="f">Theme <select id="setTheme"><option value="light" ${prefs.theme !== 'dark' ? 'selected' : ''}>Parchment</option><option value="dark" ${prefs.theme === 'dark' ? 'selected' : ''}>Dark leather</option></select></label>
+    </div>
+    <p class="help">"I am" is written on changes and ledger entries so the group can see who did what.</p>
+  </div>
+  </div>
+  ` : ''}${st === 'sync' ? `
+
+  <div class="panel"><h2>☁ Live sync (Firebase)</h2>
+    <p class="help">Everyone who opens the share link sees the same inventory, live. Changes are saved field by field the moment you make them,
+    so several players can edit at the same time — even the same item, as long as it's different fields. Coins and quantities are saved as
+    <i>changes</i> (+5 gp, −1 arrow), so two players paying at once both count. No accounts or tokens: the campaign code in the link is the key, so only share it with the group.</p>
+    <div class="fgrid">
+      <label class="f full">Campaign code <input id="fbCode" value="${esc(prefs.fb.campaign)}" placeholder="e.g. party-x7k2q9m4" autocomplete="off" spellcheck="false"></label>
+    </div>
+    <div class="toolbar" style="margin-top:10px">
+      ${prefs.fb.campaign ? `<button data-set="fbShare" class="gold" title="Copies a link with the campaign code for your players">Copy share link</button>
+      <button data-set="fbJoin" title="Switch to the campaign code above">Switch campaign</button>
+      <button data-set="fbLeave" title="Stop syncing — this browser keeps a local copy">Disconnect</button>`
+      : `<button data-set="fbJoin" class="gold" title="Join an existing campaign — its data replaces what's in this browser">Join campaign</button>
+      <button data-set="fbCreate" title="Upload what's in this browser as a new shared campaign">Create new campaign from this data</button>`}
+      <span id="ghMsg" class="small muted"></span>
+    </div>
+  </div>
+
+  ` : ''}${st === 'data' ? `
+  <div class="panel"><h2>Data</h2>
+    <div class="toolbar">
+      <button data-set="export">Export JSON</button>
+      <label class="small"><button data-set="importBtn">Import JSON…</button><input type="file" id="importFile" accept=".json,application/json" class="hidden"></label>
+      <label class="small"><input type="checkbox" id="importMerge" checked> merge with current data (untick to replace)</label>
+      <span class="spacer"></span>
+      <button data-set="reset" class="danger">Reset everything</button>
+    </div>
+    <p class="help">Catalogue: ${CATALOG.length ? CATALOG.length + ' items loaded from items-data.js' : 'items-data.js not found'}. Local copy is also kept in this browser.</p>
+  </div>` : ''}
+  </div>`;
+}
+
+function moveOrder(list, id, dir) {
+  const arr = list(); const i = arr.findIndex(x => x.id === id); const j = i + dir;
+  if (i < 0 || j < 0 || j >= arr.length) return;
+  arr.forEach((x, k) => { if (x.order !== k) { x.order = k; touch(x); } });
+  const a = arr[i], b = arr[j]; [a.order, b.order] = [b.order, a.order]; touch(a); touch(b);
+}
+
+function bindSettings() {
+  const root = $('#tab-set');
+  root.addEventListener('keydown', e => { if (e.target.id && e.target.id.startsWith('vocNew_') && e.key === 'Enter') { e.preventDefault(); root.querySelector(`[data-voc=add][data-kind="${e.target.id.slice(7)}"]`).click(); } });
+  root.addEventListener('change', e => {
+    const t = e.target;
+    if (t.dataset.vid) { const v = DB.vocab.find(x => x.id === t.dataset.vid); if (v && renameVocab(v, t.value)) commit({ defer: true }); else if (v) t.value = v.name; return; }
+    if (t.dataset.pid) {
+      const p = getPlayer(t.dataset.pid); if (!p) return;
+      if (t.dataset.k === 'name' && p.name !== t.value) logEvent('settings', { text: `character renamed: ${p.name || '(unnamed)'} → ${t.value}` });
+      p[t.dataset.k] = t.dataset.k === 'str' ? (t.value === '' ? null : int(t.value)) : t.value; touch(p); commit({ defer: true });
+    } else if (t.dataset.lid) {
+      const l = getLoc(t.dataset.lid); if (!l) return; const k = t.dataset.k;
+      if (k === 'name' && l.name !== t.value) logEvent('settings', { text: `location renamed: ${l.name || '(unnamed)'} → ${t.value}` });
+      if (k === 'parentId' && l.parentId !== t.value) logEvent('moved', { itemId: l.itemId || '', itemName: l.name, qty: 1, fromId: l.parentId, toId: t.value });
+      if (k === 'weightless') l[k] = t.checked;
+      else if (k === 'capacity') l[k] = t.value === '' ? null : num(t.value);
+      else if (k === 'selfWeight') { const li = l.itemId && getItem(l.itemId); if (li) { li.weightEach = t.value === '' ? null : num(t.value); touch(li); l.selfWeight = 0; } else l[k] = num(t.value); }
+      else l[k] = t.value;
+      if (k === 'kind' && t.value === 'location' && !l.weightless) l.weightless = true;
+      if (l.itemId && getItem(l.itemId)) { const it = getItem(l.itemId); if (k === 'parentId') { it.holderId = l.parentId; touch(it); } if (k === 'name') { it.name = l.name; touch(it); } }
+      touch(l); commit({ defer: true });
+    } else if (t.dataset.meta) {
+      const k = t.dataset.meta;
+      DB.meta[k] = k === 'coinWeight' ? t.checked : (k === 'name' ? t.value : num(t.value)); touch(DB.meta); commit({ defer: true });
+    } else if (t.id === 'setMe') { prefs.me = t.value; savePrefs(); renderHeader(); }
+    else if (t.id === 'setTheme') { prefs.theme = t.value; savePrefs(); applyTheme(); }
+    else if (t.id === 'importFile') importFile(t.files[0]);
+  });
+  root.addEventListener('click', e => {
+    const stb = e.target.closest('[data-settab]'); if (stb) { showSetTab(stb.dataset.settab); return; }
+    const vb = e.target.closest('[data-voc]');
+    if (vb) {
+      const kind = vb.dataset.kind;
+      if (vb.dataset.voc === 'add') { const i = $('#vocNew_' + kind); const n = i.value.trim(); if (!n) { i.focus(); return; } if (vocabFind(kind, n)) { toast(`"${n}" already exists`); return; } addVocab(kind, n); logEvent('settings', { text: `${kind} added: ${n}` }); commit(); setTimeout(() => $('#vocNew_' + kind)?.focus(), 20); }
+      else if (vb.dataset.voc === 'show') { prefs.filters = { q: '', holder: '', nested: true, type: kind === 'type' ? vb.dataset.name : '', rarity: '', magic: '', attune: '', tag: kind === 'tag' ? vb.dataset.name : '' }; savePrefs(); showTab('inv'); }
+      else if (vb.dataset.voc === 'del') { if (!armed(vb)) return; const v = DB.vocab.find(x => x.id === vb.dataset.id); if (v) { deleteVocab(v); commit(); toast(`Deleted ${v.kind} "${v.name}"`); } }
+      return;
+    }
+    const b = e.target.closest('[data-set]'); if (!b) return;
+    const id = b.dataset.id;
+    switch (b.dataset.set) {
+      case 'pAdd': { const p = { id: uid('pl'), name: 'New character', playerName: '', str: null, color: ['#9c7020', '#7d2e1f', '#2457a6', '#2f7d32', '#7b3fb0', '#c26a12', '#4f6f6f'][DB.players.length % 7], notes: '', order: now() }; touch(p); DB.players.push(p); logEvent('settings', { text: 'character added' }); commit(); focusNew(`[data-pid="${p.id}"][data-k=name]`); break; }
+      case 'pUp': moveOrder(sortedPlayers, id, -1); commit(); break;
+      case 'pDown': moveOrder(sortedPlayers, id, 1); commit(); break;
+      case 'pDel': {
+        if (!armed(b, '✕')) return;
+        const p = getPlayer(id);
+        DB.items.forEach(it => { if (it.holderId === id) { it.holderId = ''; touch(it); } });
+        DB.locations.forEach(l => { if (l.parentId === id) { l.parentId = ''; touch(l); } });
+        const pu = purseOf(id); if (pu && coinValue(pu)) { const pf = ensurePurse('party'); COINS.forEach(c => pf[c] = int(pf[c]) + int(pu[c])); touch(pf); }
+        if (pu) { DB.purses = DB.purses.filter(x => x !== pu); tombstone(pu.id); }
+        DB.players = DB.players.filter(x => x.id !== id); tombstone(id);
+        logEvent('settings', { text: `character removed: ${p ? p.name : ''}` });
+        if (prefs.me === id) { prefs.me = ''; savePrefs(); }
+        commit(); toast(`Removed ${p ? p.name : 'character'} — their items are now unassigned, coins went to the Party Fund`); break;
+      }
+      case 'lAdd': { const l = addLocation(''); focusNew(`[data-lid="${l.id}"][data-k=name]`); break; }
+      case 'lUp': moveOrder(sortedLocs, id, -1); commit(); break;
+      case 'lDown': moveOrder(sortedLocs, id, 1); commit(); break;
+      case 'lDel': {
+        if (!armed(b, '✕')) return;
+        const l = getLoc(id); const parent = l.parentId || '';
+        const it = l.itemId && getItem(l.itemId);
+        removeLocation(id, parent);
+        logEvent('settings', { text: `location/container removed: ${l.name} — contents moved to ${holderName(parent)}` });
+        if (it) { DB.items = DB.items.filter(x => x !== it); tombstone(it.id); }
+        commit(); toast(`Removed ${l.name} — contents moved to ${holderName(parent)}`); break;
+      }
+      case 'lItem': {
+        const l = getLoc(id); if (!l) return;
+        if (!armed(b, '', 'Make item?')) return;
+        l.noItem = false;
+        const it = Object.assign(blankItem(l.parentId), { id: 'itl_' + l.id, name: l.name, type: LOC_KINDS[l.kind].replace(/^\S+\s/, ''), weightEach: num(l.selfWeight) || null, createdAt: now() });
+        touch(it); DB.items.push(it); l.itemId = it.id; l.selfWeight = 0; touch(l);
+        logEvent('settings', { text: `${l.name} is now also listed as an item` }); commit(); toast(`${l.name} now shows in the item list`); break;
+      }
+      case 'lUnItem': {   // undo: keep the location, remove it from the item list
+        const l = getLoc(id); if (!l) return;
+        if (!armed(b, '', 'Remove item?')) return;
+        const it = l.itemId && getItem(l.itemId);
+        if (it) { l.selfWeight = num(it.weightEach); DB.items = DB.items.filter(x => x !== it); tombstone(it.id); sel.delete(it.id); }
+        l.itemId = ''; l.noItem = true; touch(l);
+        logEvent('settings', { text: `${l.name} is no longer listed as an item (location kept)` }); commit(); toast(`${l.name} removed from the item list — the location and its contents are kept`); break;
+      }
+      case 'fbJoin': {
+        const code = fbCleanCode($('#fbCode').value);
+        if (!code) { $('#ghMsg').textContent = 'Enter a campaign code (at least 8 letters/digits).'; return; }
+        if (prefs.fb.campaign && !armed(b, '', 'Switch campaign?')) return;
+        $('#ghMsg').textContent = 'Connecting…';
+        fbConnect(code).then(() => { renderSettings(); toast('Connected to ' + code); }, e => { $('#ghMsg') && ($('#ghMsg').textContent = e.message); });
+        break;
+      }
+      case 'fbCreate': {
+        const code = fbCleanCode($('#fbCode').value) || fbNewCode();
+        $('#ghMsg').textContent = 'Creating…';
+        fbConnect(code, { create: true }).then(() => { renderSettings(); toast('Campaign created — copy the share link for your players'); }, e => { $('#ghMsg') && ($('#ghMsg').textContent = e.message); });
+        break;
+      }
+      case 'fbShare': {
+        const u = new URL(location.href); u.search = ''; u.hash = '';
+        u.searchParams.set('c', prefs.fb.campaign);
+        const s = u.toString();
+        (navigator.clipboard ? navigator.clipboard.writeText(s) : Promise.reject()).then(() => toast('Share link copied'), () => { $('#ghMsg').textContent = s; });
+        break;
+      }
+      case 'fbLeave': {
+        if (!armed(b, '', 'Disconnect?')) return;
+        fbDisconnect(); prefs.fb.campaign = ''; savePrefs(); idleStatus(); renderSettings(); toast('Disconnected — local copy kept in this browser');
+        break;
+      }
+      case 'export': exportJSON(); break;
+      case 'importBtn': $('#importFile').click(); break;
+      case 'reset': {
+        if (!armed(b, '', 'Wipe ALL data?')) return;
+        const tomb = {}; [...COLS.flatMap(c => DB[c].map(r => r.id))].forEach(i => tomb[i] = now() + 1);
+        DB = seedDB(); DB.tombstones = tomb; DB.meta.updatedAt = now(); logEvent('settings', { text: 'all data reset' }); commit(); toast('Data reset'); break;
+      }
+    }
+  });
+}
+/* Inline delete confirmation, same as the character sheet (safeDelete): the button turns into ✔ / ✖.
+   Call armed(btn) from a click handler: false on the first click (and on ✖), true when ✔ is clicked. */
+let lastClickTarget = null;
+document.addEventListener('click', e => { lastClickTarget = e.target; }, true);
+function armed(b, label, prompt = '') {
+  if (b.dataset.confirming === 'true') {
+    const t = lastClickTarget;
+    if (t && t.closest && t.closest('.cf-yes')) { setTimeout(() => { if (b.isConnected) cancelArmed(b); }, 0); return true; }
+    if (t && t.closest && t.closest('.cf-no')) cancelArmed(b);
+    return false;
+  }
+  $$('[data-confirming="true"]').forEach(cancelArmed);   // only one pending confirm at a time
+  b.dataset.confirming = 'true'; b.dataset.originalHtml = b.innerHTML; b.classList.add('confirming');
+  b.innerHTML = `${prompt ? `<span class="cf-txt">${esc(prompt)}</span> ` : ''}<span class="cf-yes" title="Confirm">✔</span> <span class="cf-no" title="Cancel">✖</span>`;
+  return false;
+}
+function cancelArmed(b) { if (b.dataset.confirming !== 'true') return; b.dataset.confirming = 'false'; b.innerHTML = b.dataset.originalHtml; b.classList.remove('confirming'); }
+function focusNew(selector) { setTimeout(() => { const i = $(selector); if (i) { i.focus(); i.select(); i.scrollIntoView({ block: 'center' }); } }, 30); }
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(DB, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'inventory-data.json'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+/* On a merge-import, characters and places that already exist here (same name) are reused instead of duplicated:
+   the imported records are dropped and every reference to them is pointed at the existing ones. */
+function matchByName(d) {
+  const key = s => String(s || '').trim().toLowerCase();
+  const map = {};
+  const mine = { players: new Map(DB.players.map(p => [key(p.name), p.id])), locations: new Map(DB.locations.map(l => [key(l.name), l.id])) };
+  for (const c of ['players', 'locations']) {
+    d[c] = d[c].filter(r => { const id = mine[c].get(key(r.name)); if (id && id !== r.id) { map[r.id] = id; return false; } if (id) return false; return true; });
+  }
+  const m = id => map[id] || id;
+  d.locations.forEach(l => l.parentId = m(l.parentId));
+  d.items.forEach(i => i.holderId = m(i.holderId));
+  d.purses.forEach(p => { if (map[p.holderId]) { p.holderId = m(p.holderId); p.id = 'cur_' + p.holderId; } });
+  d.ledger.forEach(x => { x.fromId = m(x.fromId); x.toId = m(x.toId); });
+  return Object.keys(map).length;
+}
+function importFile(file) {
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const d = normalizeDB(JSON.parse(r.result));
+      let matched = 0;
+      if (!$('#importMerge') || $('#importMerge').checked) { matched = matchByName(d); DB = normalizeDB(mergeDB(DB, d)); }
+      else {
+        const tomb = Object.assign({}, DB.tombstones); COLS.forEach(c => DB[c].forEach(x => { if (!d[c].some(y => y.id === x.id)) tomb[x.id] = now() + 1; }));
+        const t = now(); COLS.forEach(c => d[c].forEach(x => x.updatedAt = t)); d.meta.updatedAt = t;
+        d.tombstones = Object.assign(tomb, d.tombstones); DB = d;
+      }
+      const n = d.items.length;
+      logEvent('settings', { text: `data imported from file (${n} item${n === 1 ? '' : 's'}${matched ? `, ${matched} character/place name${matched === 1 ? '' : 's'} matched to existing` : ''})` });
+      commit(); toast(`Imported ${n} items`);
+    } catch (e) { toast('Import failed: ' + e.message); }
+  };
+  r.readAsText(file);
+}
+
+/* =================== ACTIVITY LOG =================== */
+const LOG_TYPES = { added: 'Added', moved: 'Moved', edited: 'Edited', deleted: 'Deleted', coins: 'Coins', container: 'Container', settings: 'Settings', note: 'Note' };
+const FIELD_LABEL = { name: 'name', qty: 'qty', weightEach: 'weight', valueCp: 'value', type: 'type', rarity: 'rarity', magical: 'magical',
+  attunement: 'requires attunement', attuneNote: 'attunement note', identified: 'identified', equipped: 'equipped', charges: 'charges',
+  chargesMax: 'max charges', tags: 'tags', stats: 'stats', desc: 'description', notes: 'notes', source: 'source' };
+let logEditId = '', logShowAll = false;
+
+/* record an event; o: {itemId,itemName,qty,fromId,toId,text,changes} */
+function logEvent(action, o = {}) {
+  const e = Object.assign({ id: uid('log'), ts: now(), action, by: meName(), gameDate: DB.meta.gameDate || '' }, o);
+  if (o.fromId !== undefined) e.fromName = holderLabel(o.fromId);
+  if (o.toId !== undefined) e.toName = holderLabel(o.toId);
+  touch(e); DB.log.push(e); return e;
+}
+function logItem(action, it, extra = {}) {
+  return logEvent(action, Object.assign({ itemId: it.id, itemName: it.name, qty: num(it.qty) }, extra));
+}
+/* field edits on the same item by the same person within 10 min are merged into one entry */
+function logEdit(it, key, from, to) {
+  const by = meName(), t = now();
+  let e = DB.log.filter(x => x.action === 'edited' && x.itemId === it.id && x.by === by && t - num(x.ts) < 600000 && !x.text)
+    .sort((a, b) => num(b.ts) - num(a.ts))[0];
+  if (!e) e = logItem('edited', it, { changes: {} });
+  e.changes = Object.assign({}, e.changes || {});
+  const orig = e.changes[key] ? e.changes[key][0] : from;
+  if (JSON.stringify(orig) === JSON.stringify(to)) delete e.changes[key]; else e.changes[key] = [orig, to];
+  e.itemName = it.name; e.qty = num(it.qty); e.ts = t; touch(e);
+  if (!Object.keys(e.changes).length) { DB.log = DB.log.filter(x => x !== e); tombstone(e.id); }
+}
+function fmtChange(k, v) {
+  if (v === null || v === undefined || v === '') return '—';
+  if (typeof v === 'boolean') return v ? 'yes' : 'no';
+  if (k === 'valueCp') return fmtCp(v);
+  if (k === 'weightEach') return fmtW(num(v));
+  if (k === 'desc' || k === 'notes') return '';
+  return String(v).length > 40 ? String(v).slice(0, 40) + '…' : String(v);
+}
+function logDetail(e) {
+  if (e.text) return e.text;
+  switch (e.action) {
+    case 'added': return `to ${e.toName || 'Unassigned'}`;
+    case 'moved': return `${e.fromName || 'Unassigned'} → ${e.toName || 'Unassigned'}`;
+    case 'deleted': return `from ${e.fromName || 'Unassigned'}`;
+    case 'edited': return Object.entries(e.changes || {}).map(([k, [a, b]]) => (k === 'desc' || k === 'notes') ? `${FIELD_LABEL[k]} changed` : `${FIELD_LABEL[k] || k}: ${fmtChange(k, a)} → ${fmtChange(k, b)}`).join('; ');
+    default: return '';
+  }
+}
+
+function toLocalInput(t) { const d = new Date(t); const p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; }
+function dayStart(s) { const d = new Date(s + 'T00:00'); return d.getTime(); }
+
+function filteredLog() {
+  const f = prefs.logf; const q = (f.q || '').trim().toLowerCase();
+  const from = f.from ? dayStart(f.from) : -Infinity, to = f.to ? dayStart(f.to) + 86400000 : Infinity;
+  const idx = new Map(DB.log.map((e, i) => [e.id, i]));
+  return DB.log.filter(e => {
+    if (f.types && f.types.length && !f.types.includes(e.action)) return false;
+    if (f.by && (e.by || '') !== f.by) return false;
+    if (num(e.ts) < from || num(e.ts) >= to) return false;
+    if (q && ![e.itemName, logDetail(e), e.note, e.by, e.gameDate, LOG_TYPES[e.action]].join(' ').toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((a, b) => ((num(a.ts) - num(b.ts)) || (idx.get(a.id) - idx.get(b.id))) * (f.dir || -1));
+}
+
+function renderLog() {
+  const f = prefs.logf;
+  const list = filteredLog();
+  const shown = logShowAll ? list : list.slice(0, 300);
+  const people = Array.from(new Set(DB.log.map(e => e.by).filter(Boolean))).sort();
+  const active = f.q || (f.types && f.types.length) || f.by || f.from || f.to;
+  $('#tab-log').innerHTML = `
+  <div class="panel"><div class="toolbar">
+    <button class="gold" data-log="new">+ Add entry</button>
+    <input type="search" id="lgQ" placeholder="Search item, details, notes…" value="${esc(f.q || '')}">
+    <label>Who <select id="lgBy"><option value="">Everyone</option>${people.map(p => `<option ${p === f.by ? 'selected' : ''}>${esc(p)}</option>`).join('')}</select></label>
+    <label>From <input type="date" id="lgFrom" value="${esc(f.from || '')}"></label>
+    <label>To <input type="date" id="lgTo" value="${esc(f.to || '')}"></label>
+    <button class="small" id="lgDir" title="Toggle order">${(f.dir || -1) < 0 ? 'Newest first ▼' : 'Oldest first ▲'}</button>
+    ${active ? '<button class="ghost small" data-log="clear">✕ Clear filters</button>' : ''}
+    <span class="spacer"></span>
+    <label title="Stamped on new log entries">In-game date <input id="lgGame" value="${esc(DB.meta.gameDate || '')}" placeholder="e.g. 3 Mirtul 1492" style="width:150px"></label>
+  </div>
+  <div class="checks" style="margin-top:8px">${Object.entries(LOG_TYPES).map(([k, l]) => `<label class="lgt lg-${k}"><input type="checkbox" data-lgtype="${k}" ${(f.types || []).includes(k) ? 'checked' : ''}> ${l}</label>`).join('')}
+    <span class="small muted">(none ticked = all)</span></div></div>
+
+  <div class="tablewrap"><table class="logt"><thead><tr><th class="nosort">When</th><th class="nosort">Game date</th><th class="nosort">Who</th><th class="nosort">Action</th><th class="nosort">Item</th><th class="nosort">Details</th><th class="nosort">Note</th><th class="nosort"></th></tr></thead>
+  <tbody>${shown.length ? shown.map(e => e.id === logEditId ? logEditRow(e) : logRow(e)).join('') : `<tr><td colspan="8" class="empty">${DB.log.length ? 'No entries match the filters.' : 'Nothing logged yet. Adding, moving, editing and deleting items is recorded here automatically.'}</td></tr>`}</tbody></table></div>
+  <div class="toolbar" style="margin-top:8px">
+    <span class="small muted">Showing ${shown.length} of ${list.length} matching (${DB.log.length} total)</span>
+    ${list.length > shown.length ? '<button class="small" data-log="all">Show all</button>' : ''}
+    <span class="spacer"></span>
+    <button class="small" data-log="csv">Export CSV</button>
+    ${list.length ? `<button class="small danger" data-log="delShown">Delete ${active ? 'shown' : 'all'} (${list.length})</button>` : ''}
+  </div>`;
+}
+function logRow(e) {
+  const it = e.itemId && getItem(e.itemId);
+  const item = e.itemName ? (it ? `<a class="lglink" data-goitem="${esc(e.itemId)}">${esc(e.itemName)}</a>` : esc(e.itemName)) + (e.qty && e.qty !== 1 && e.action !== 'edited' ? ` <span class="muted">× ${esc(+num(e.qty).toFixed(2))}</span>` : '') : '';
+  return `<tr data-logid="${esc(e.id)}">
+    <td class="nowrap small">${esc(fmtTime(e.ts))}</td><td class="small">${esc(e.gameDate || '')}</td><td class="small">${esc(e.by || '')}</td>
+    <td><span class="lgt lg-${esc(e.action)}">${esc(LOG_TYPES[e.action] || e.action)}</span></td>
+    <td>${item}</td><td class="small">${esc(logDetail(e))}</td><td class="small"><i>${esc(e.note || '')}</i></td>
+    <td class="nowrap"><button class="ghost small" data-log="edit" data-id="${esc(e.id)}" title="Edit entry">✎</button><button class="ghost small danger" data-log="del" data-id="${esc(e.id)}" title="Delete entry">✕</button></td></tr>`;
+}
+function logEditRow(e) {
+  return `<tr class="lgedit" data-logid="${esc(e.id)}">
+    <td><input type="datetime-local" id="leTs" value="${esc(toLocalInput(e.ts))}"></td>
+    <td><input id="leGame" value="${esc(e.gameDate || '')}" style="width:110px"></td>
+    <td><input id="leBy" value="${esc(e.by || '')}" style="width:90px"></td>
+    <td><select id="leAct">${Object.entries(LOG_TYPES).map(([k, l]) => `<option value="${k}" ${k === e.action ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
+    <td><input id="leItem" value="${esc(e.itemName || '')}" style="width:130px"></td>
+    <td><input id="leText" value="${esc(logDetail(e))}" style="width:100%;min-width:160px"></td>
+    <td><input id="leNote" value="${esc(e.note || '')}" style="width:100%;min-width:110px"></td>
+    <td class="nowrap"><button class="small gold" data-log="save" data-id="${esc(e.id)}">Save</button><button class="small ghost" data-log="cancel">Cancel</button></td></tr>`;
+}
+
+function logCsv(list) {
+  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const rows = [['When', 'Game date', 'Who', 'Action', 'Item', 'Qty', 'Details', 'Note']].concat(
+    list.map(e => [new Date(num(e.ts)).toISOString(), e.gameDate, e.by, LOG_TYPES[e.action] || e.action, e.itemName, e.qty, logDetail(e), e.note]));
+  const blob = new Blob(['﻿' + rows.map(r => r.map(q).join(';')).join('\r\n')], { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'inventory-log.csv';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+function bindLog() {
+  const root = $('#tab-log');
+  root.addEventListener('dblclick', e => {
+    if (e.target.closest('button,input,select,a')) return;
+    const tr = e.target.closest('tr[data-logid]'); if (tr && !tr.classList.contains('lgedit')) { logEditId = tr.dataset.logid; renderLog(); setTimeout(() => $('#leText')?.focus(), 20); }
+  });
+  let qT;
+  root.addEventListener('input', e => {
+    if (e.target.id === 'lgQ') { clearTimeout(qT); qT = setTimeout(() => { prefs.logf.q = e.target.value; savePrefs(); const pos = e.target.selectionStart; renderLog(); const i = $('#lgQ'); i.focus(); try { i.setSelectionRange(pos, pos); } catch (er) { } }, 200); }
+  });
+  root.addEventListener('change', e => {
+    const t = e.target, f = prefs.logf;
+    if (t.dataset.lgtype) { const s = new Set(f.types || []); t.checked ? s.add(t.dataset.lgtype) : s.delete(t.dataset.lgtype); f.types = Array.from(s); }
+    else if (t.id === 'lgBy') f.by = t.value;
+    else if (t.id === 'lgFrom') f.from = t.value;
+    else if (t.id === 'lgTo') f.to = t.value;
+    else if (t.id === 'lgGame') { DB.meta.gameDate = t.value.trim(); touch(DB.meta); commit({ keep: ['log'] }); return; }
+    else return;
+    savePrefs(); renderLog();
+  });
+  root.addEventListener('keydown', e => {
+    if (e.target.closest('.lgedit') && e.key === 'Enter') { e.preventDefault(); root.querySelector('[data-log=save]')?.click(); }
+    if (e.target.closest('.lgedit') && e.key === 'Escape') { e.stopPropagation(); logEditId = ''; renderLog(); }
+  });
+  root.addEventListener('click', e => {
+    if (e.target.id === 'lgDir') { prefs.logf.dir = (prefs.logf.dir || -1) * -1; savePrefs(); renderLog(); return; }
+    const gi = e.target.closest('[data-goitem]'); if (gi) { openItem(gi.dataset.goitem); return; }
+    const b = e.target.closest('[data-log]'); if (!b) return;
+    const id = b.dataset.id;
+    switch (b.dataset.log) {
+      case 'new': { const en = logEvent('note', { text: '' }); logEditId = en.id; commit({ keep: ['log'] }); prefs.logf.dir = -1; renderLog(); setTimeout(() => $('#leText')?.focus(), 20); break; }
+      case 'clear': prefs.logf = { q: '', types: [], by: '', from: '', to: '', dir: prefs.logf.dir || -1 }; savePrefs(); renderLog(); break;
+      case 'all': logShowAll = true; renderLog(); break;
+      case 'csv': logCsv(filteredLog()); break;
+      case 'edit': logEditId = id; renderLog(); setTimeout(() => $('#leText')?.focus(), 20); break;
+      case 'cancel': {
+        const en = DB.log.find(x => x.id === logEditId);
+        if (en && en.action === 'note' && !en.text && !en.note && !en.itemName) { DB.log = DB.log.filter(x => x !== en); tombstone(en.id); logEditId = ''; commit(); break; }
+        logEditId = ''; renderLog(); break;
+      }
+      case 'save': {
+        const en = DB.log.find(x => x.id === id); if (!en) return;
+        const ts = new Date($('#leTs').value).getTime();
+        if (isFinite(ts)) en.ts = ts;
+        en.gameDate = $('#leGame').value.trim(); en.by = $('#leBy').value.trim(); en.action = $('#leAct').value;
+        en.itemName = $('#leItem').value.trim();
+        const txt = $('#leText').value.trim();
+        const auto = (() => { const c = Object.assign({}, en, { text: '' }); return logDetail(c); })();
+        en.text = txt === auto ? '' : txt;
+        if (en.action === 'note' && !en.text && !txt) en.text = '';
+        en.note = $('#leNote').value.trim();
+        touch(en); logEditId = ''; commit(); toast('Log entry saved'); break;
+      }
+      case 'del': {
+        if (!armed(b)) return;
+        DB.log = DB.log.filter(x => x.id !== id); tombstone(id); if (logEditId === id) logEditId = ''; commit(); toast('Log entry deleted'); break;
+      }
+      case 'delShown': {
+        const list = filteredLog();
+        if (!armed(b, '', `Delete ${list.length}?`)) return;
+        const ids = new Set(list.map(x => x.id)); DB.log = DB.log.filter(x => !ids.has(x.id)); ids.forEach(tombstone);
+        commit(); toast(`Deleted ${ids.size} log entr${ids.size === 1 ? 'y' : 'ies'}`); break;
+      }
+    }
+  });
+}
+
+/* =================== FIREBASE LIVE SYNC ===================
+   Remote layout: campaigns/<code>/ { meta, tombstones, players/<id>, locations/<id>, items/<id>, purses/<id>, ledger/<id>, log/<id>, vocab/<id> }
+   Every local commit is diffed against the last state we saw from the server (BASE) and only the changed
+   fields are written. qty and coins are written as increments, so simultaneous changes add up. */
+const FB_VER = '12.18.0';
+const FB_CONFIG = {
+  apiKey: 'AIzaSyBKlvrqsiN8eNmAMGKj4101OyB5z_hULOI',
+  authDomain: 'dnd-zentic.firebaseapp.com',
+  databaseURL: 'https://dnd-zentic-default-rtdb.europe-west1.firebasedatabase.app',
+  projectId: 'dnd-zentic',
+  storageBucket: 'dnd-zentic.firebasestorage.app',
+  messagingSenderId: '499715115328',
+  appId: '1:499715115328:web:7b53d65ffcf81b2e6792a5'
+};
+const INC_FIELDS = { items: ['qty'], purses: COINS };
+
+let FB = null, fbRef = null, fbUnsub = null, fbConnUnsub = null;
+let BASE = null, fbLatest, fbApplyT, fbOnline = false, fbPending = 0, fbLastErr = '';
+
+function fbCleanCode(s) { const c = String(s || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, ''); return c.length >= 8 ? c.slice(0, 60) : ''; }
+function fbNewCode() {
+  const slug = vslug(DB.meta.name || 'party').replace(/[^a-z0-9-]/g, '').slice(0, 20) || 'party';
+  const r = Array.from(crypto.getRandomValues(new Uint8Array(8)), b => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join('');
+  return slug + '-' + r;
+}
+
+async function fbLoad() {
+  if (FB) return FB;
+  const base = `https://www.gstatic.com/firebasejs/${FB_VER}/`;
+  const [appM, authM, dbM] = await Promise.all(['firebase-app.js', 'firebase-auth.js', 'firebase-database.js'].map(f => import(base + f)));
+  const app = appM.initializeApp(FB_CONFIG);
+  await authM.signInAnonymously(authM.getAuth(app));
+  FB = Object.assign({ db: dbM.getDatabase(app) }, dbM);
+  return FB;
+}
+
+/* ---------- local <-> remote shape ---------- */
+const clone = o => JSON.parse(JSON.stringify(o));
+function stableJ(v) {
+  if (v === undefined || v === null || (typeof v === 'number' && !isFinite(v))) return 'null';
+  if (Array.isArray(v)) return '[' + v.map(stableJ).join(',') + ']';
+  if (typeof v === 'object') return '{' + Object.keys(v).filter(k => v[k] !== undefined && v[k] !== null).sort().map(k => JSON.stringify(k) + ':' + stableJ(v[k])).join(',') + '}';
+  return JSON.stringify(v);
+}
+function toRemote(db) {
+  const d = clone(db), out = { app: 'group-inventory', version: APP_VERSION, meta: d.meta || {}, tombstones: d.tombstones || {} };
+  COLS.forEach(c => { out[c] = Object.fromEntries((d[c] || []).map(r => [r.id, r])); });
+  return out;
+}
+function fromRemote(v) {
+  v = v || {};
+  const d = { meta: v.meta || {}, tombstones: v.tombstones || {} };
+  // a record without its id is a leftover field-write onto something that was deleted meanwhile: drop it
+  COLS.forEach(c => { d[c] = Object.values(v[c] || {}).filter(r => r && typeof r === 'object' && r.id); });
+  return normalizeDB(mergeDB(d, { meta: { updatedAt: -1 } }));   // applies tombstones + stable order
+}
+
+/* field-level diff → multi-path update object */
+function fbDiff(base, cur) {
+  const up = {};
+  const keys = (a, b) => new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
+  for (const k of keys(base.meta, cur.meta)) if (stableJ(base.meta?.[k]) !== stableJ(cur.meta?.[k])) up['meta/' + k] = cur.meta?.[k] ?? null;
+  for (const k of keys(base.tombstones, cur.tombstones)) if (base.tombstones?.[k] !== cur.tombstones?.[k]) up['tombstones/' + k] = cur.tombstones?.[k] ?? null;
+  for (const c of COLS) {
+    const bm = new Map((base[c] || []).map(r => [r.id, r]));
+    const inc = INC_FIELDS[c] || [];
+    for (const r of (cur[c] || [])) {
+      const b = bm.get(r.id); bm.delete(r.id);
+      if (!b) { up[`${c}/${r.id}`] = r; continue; }
+      for (const k of keys(b, r)) {
+        if (stableJ(b[k]) === stableJ(r[k])) continue;
+        const path = `${c}/${r.id}/${k}`;
+        if (inc.includes(k) && typeof b[k] === 'number' && typeof r[k] === 'number') up[path] = FB.increment(r[k] - b[k]);
+        else up[path] = r[k] ?? null;
+      }
+    }
+    for (const id of bm.keys()) up[`${c}/${id}`] = null;
+  }
+  return up;
+}
+
+/* push local changes (called from commit). Returns true if something was sent. */
+function fbPush() {
+  if (!fbRef || !BASE || !FB) return false;
+  const cur = clone(DB), up = fbDiff(BASE, cur);
+  BASE = cur;
+  if (!Object.keys(up).length) { dirty = false; idleStatus(); return false; }
+  fbPending++; idleStatus();
+  FB.update(fbRef, up).then(() => { fbLastErr = ''; }, e => { console.error(e); fbLastErr = e.code === 'PERMISSION_DENIED' ? 'Not allowed — check database rules' : e.message; })
+    .finally(() => { fbPending--; if (!fbPending) dirty = false; idleStatus(); });
+  return true;
+}
+function scheduleSync() { if (!fbPush()) idleStatus(); }
+
+function fbOnValue(snap) { fbLatest = snap.val(); clearTimeout(fbApplyT); fbApplyT = setTimeout(fbApply, 0); }
+function fbApply() {
+  if (!fbRef) return;
+  if (fbPush()) { fbApplyT = setTimeout(fbApply, 30); return; }   // never drop a local edit: send it first, then take the server state
+  if (fbLatest == null) { setStatus('err', 'Campaign was deleted on the server'); return; }
+  const before = canon(DB);
+  DB = fromRemote(fbLatest); BASE = clone(DB);
+  if (syncLinked() | ensureVocab()) fbPush();
+  saveLocal();
+  if (canon(DB) !== before) refreshAfterRemote();
+  idleStatus();
+}
+
+async function fbConnect(code, opts = {}) {
+  setStatus('busy', 'Connecting…');
+  try { await fbLoad(); }
+  catch (e) { throw new Error(/admin-restricted|operation-not-allowed/.test(e.code || '') ? 'Turn on Anonymous sign-in in Firebase → Authentication' : 'Could not reach Firebase: ' + (e.code || e.message)); }
+  const ref = FB.ref(FB.db, 'campaigns/' + code);
+  try {
+    if (opts.create) {
+      const s = await FB.get(ref);
+      if (s.exists()) throw new Error('That campaign code is already in use');
+      await FB.set(ref, toRemote(DB));
+    } else {
+      const s = await FB.get(ref);
+      if (!s.exists()) throw new Error('No campaign with that code');
+    }
+  } catch (e) { setStatus('err', 'Connect failed'); throw e.code === 'PERMISSION_DENIED' ? new Error('Not allowed — check the database rules') : e; }
+  fbDisconnect();
+  prefs.fb.campaign = code; savePrefs();
+  fbRef = ref; BASE = null;
+  fbUnsub = FB.onValue(ref, fbOnValue, e => { setStatus('err', 'Live sync stopped: ' + (e.code || e.message)); });
+  fbConnUnsub = FB.onValue(FB.ref(FB.db, '.info/connected'), s => { fbOnline = !!s.val(); idleStatus(); });
+}
+function fbDisconnect() {
+  if (fbUnsub) fbUnsub(); if (fbConnUnsub) fbConnUnsub();
+  fbUnsub = fbConnUnsub = null; fbRef = null; BASE = null; fbOnline = false; clearTimeout(fbApplyT);
+}
+
+function setStatus(state, text) {
+  const d = $('#syncDot'); d.className = 'dot ' + (state || '');
+  $('#syncText').textContent = text;
+}
+function idleStatus() {
+  if (!prefs.fb.campaign) return setStatus('', 'Local only');
+  if (!fbRef) return setStatus('err', 'Not connected — click ☁');
+  if (fbLastErr) return setStatus('err', fbLastErr.slice(0, 60));
+  if (!BASE) return setStatus('busy', 'Loading…');
+  if (!fbOnline) return setStatus('busy', 'Offline · changes kept');
+  if (fbPending) return setStatus('busy', 'Saving…');
+  setStatus('ok', 'Live · ' + prefs.fb.campaign);
+}
+
+/* re-render, but don't clobber what the user is typing */
+function refreshAfterRemote() {
+  const ae = document.activeElement;
+  const typingIn = ae && ae.matches && ae.matches('input,textarea,select') ? ae.closest('section,aside') : null;
+  const keep = [];
+  if (typingIn && typingIn.id && typingIn.id.startsWith('tab-')) keep.push(typingIn.id.slice(4));
+  renderAll(keep);
+  if (drawer.mode === 'edit' || drawer.mode === 'view') {
+    if (!getItem(drawer.id)) { closeDrawer(); toast('That item was removed by someone else'); }
+    else if (!(typingIn && typingIn.id === 'drawer')) renderDrawer();
+  }
+}
+
+/* =================== HEADER / TABS / INIT =================== */
+function applyTheme() { document.documentElement.setAttribute('data-theme', prefs.theme === 'dark' ? 'dark' : 'light'); }
+function renderHeader() {
+  $('#campName').textContent = DB.meta.name || '';
+  $('#meSel').innerHTML = playerOptions(prefs.me, '— who? —') + `<option value="dm" ${prefs.me === 'dm' ? 'selected' : ''}>DM</option>`;
+  document.title = (DB.meta.name ? DB.meta.name + ' · ' : '') + 'Group Inventory';
+}
+function showTab(t) {
+  prefs.tab = t; savePrefs(); sel.clear();
+  $$('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  ['inv', 'loc', 'cur', 'log', 'set'].forEach(x => $('#tab-' + x).classList.toggle('hidden', x !== t));
+  if (t === 'loc') openLoc = openLoc || '';
+  renderTab(t);
+}
+function renderTab(t) {
+  if (t === 'inv') renderInventory();
+  else if (t === 'loc') renderLocations();
+  else if (t === 'cur') renderCurrency();
+  else if (t === 'set') renderSettings();
+  else if (t === 'log') renderLog();
+}
+/* render header + visible tab (unless listed in keep) */
+function renderAll(keep = []) {
+  renderHeader();
+  if (!keep.includes(prefs.tab)) renderTab(prefs.tab);
+  else if (prefs.tab === 'inv') { /* nothing */ }
+}
+
+function readUrlParams() {
+  try {
+    const c = fbCleanCode(new URLSearchParams(location.search).get('c') || '');
+    if (c) { const changed = c !== prefs.fb.campaign; prefs.fb.campaign = c; savePrefs(); return changed; }
+  } catch (e) { }
+  return false;
+}
+
+async function init() {
+  loadPrefs(); applyTheme();
+  if (!SORTERS[prefs.sort.key]) prefs.sort.key = 'name';
+  if (!['', 'req', 'none'].includes(prefs.filters.attune)) prefs.filters.attune = '';
+  const newCampaign = readUrlParams();
+  const local = loadLocal();
+  if (local && !newCampaign) DB = local;
+  else if (!prefs.fb.campaign) {
+    // first run: try the starter file next to the page (works when served over http/GitHub Pages)
+    try { const r = await fetch('inventory-data.json', { cache: 'no-store' }); if (r.ok) DB = normalizeDB(await r.json()); } catch (e) { }
+  }
+  DB = normalizeDB(DB);
+  if (syncLinked() | ensureVocab()) saveLocal();
+  bindInventory(); bindDrawer(); bindLocations(); bindCurrency(); bindSettings(); bindLog();
+  $('#tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { if (b.dataset.tab === 'loc') openLoc = ''; showTab(b.dataset.tab); } });
+  $('#meSel').addEventListener('change', e => { prefs.me = e.target.value; savePrefs(); if (prefs.tab === 'set') renderSettings(); });
+  $('#themeBtn').addEventListener('click', () => { prefs.theme = prefs.theme === 'dark' ? 'light' : 'dark'; savePrefs(); applyTheme(); if (prefs.tab === 'set') renderSettings(); });
+  $('#syncBtn').addEventListener('click', () => {
+    if (!prefs.fb.campaign) { prefs.setTab = 'sync'; showTab('set'); setTimeout(() => $('#fbCode')?.focus(), 30); toast('Set up live sync first'); }
+    else if (!fbRef) fbConnect(prefs.fb.campaign).catch(e => setStatus('err', e.message));
+    else toast(fbOnline ? 'Live — changes are saved instantly' : 'Offline — changes are kept and sent when you reconnect');
+  });
+  window.addEventListener('beforeunload', e => { if (fbPending > 0) { e.preventDefault(); e.returnValue = ''; } });
+  $('#toTop').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+  $('#toBottom').addEventListener('click', () => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' }));
+  const navVis = () => { const el = document.documentElement, can = el.scrollHeight > window.innerHeight + 40;
+    $('#toTop').classList.toggle('dim', window.scrollY < 40); $('#toBottom').classList.toggle('dim', window.scrollY + window.innerHeight > el.scrollHeight - 40);
+    $('#scrollNav').classList.toggle('hidden', !can); };
+  window.addEventListener('scroll', navVis, { passive: true }); window.addEventListener('resize', navVis);
+  new MutationObserver(() => requestAnimationFrame(navVis)).observe($('main'), { childList: true, subtree: true });
+  showTab(prefs.tab || 'inv');
+  idleStatus();
+  if (prefs.fb.campaign) fbConnect(prefs.fb.campaign).catch(e => { console.error(e); setStatus('err', e.message.slice(0, 60)); });
+}
+init();
+
+</script>
+</body>
+</html>
