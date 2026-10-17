@@ -48,6 +48,11 @@ header{position:sticky;top:0;z-index:20;background:var(--bg2)}
 @media (max-width:760px){:root{--gutter:10px}}
 .hrow{display:flex;align-items:center;gap:12px;padding:8px var(--gutter);flex-wrap:wrap}
 .brand h1{font-size:20px;color:var(--gold)} .brand .camp{font-size:13px;color:var(--muted)}
+.campsel{font:inherit;font-size:13px;color:var(--muted);background:transparent;border:1px solid transparent;border-radius:4px;padding:0 2px;margin-left:-3px;cursor:pointer;max-width:260px}
+.campsel:hover,.campsel:focus{border-color:var(--line2);color:var(--ink)} .campsel option{background:var(--panel);color:var(--ink)}
+.camplist{display:flex;flex-direction:column;gap:4px;margin:4px 0 6px} .camprow{display:flex;gap:8px;align-items:center;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel2)}
+.camprow.on{border-color:var(--gold2)} .camprow .nm{flex:1;min-width:0} .camprow .nm b{font-family:Cinzel,serif} .camprow code{font-size:12px;color:var(--muted)}
+.subh{font-size:13px;color:var(--gold);margin:14px 0 4px}
 .spacer{flex:1}
 .cloud{display:flex;align-items:center;gap:6px;font-size:13px}
 .cloud button{font-size:18px;line-height:1;padding:3px 9px;color:var(--gold)}
@@ -229,7 +234,7 @@ tr.item:hover .qb,.qb:focus{opacity:1}
 <body>
 <header>
   <div class="hrow">
-    <div class="brand"><h1>⚜ Group Inventory</h1><div class="camp" id="campName"></div></div>
+    <div class="brand"><h1>⚜ Group Inventory</h1><div class="camp" id="campName"></div><select id="campSel" class="campsel hidden" aria-label="Switch campaign" title="Switch campaign"></select></div>
     <div class="spacer"></div>
     <label class="small muted">I am <select id="meSel"></select></label>
     <div class="cloud"><span class="dot" id="syncDot"></span><span id="syncText" class="muted">Local only</span>
@@ -355,7 +360,7 @@ const canon = db => JSON.stringify(mergeDB(db, { meta: { updatedAt: -1 } }));
 let DB = seedDB();
 let prefs = {
   theme: 'light', me: '', tab: 'inv',
-  fb: { campaign: '' },
+  fb: { campaign: '', list: [], me: {} },
   filters: { q: '', holder: '', nested: true, type: '', rarity: '', magic: '', attune: '', tag: '' },
   sort: { key: 'name', dir: 1 }, group: 'none',
   logf: { q: '', types: [], by: '', from: '', to: '', dir: -1 },
@@ -368,9 +373,17 @@ let openLoc = '';               // container view: holder id currently open
 function loadPrefs() {
   try { const p = JSON.parse(localStorage.getItem(LS_PREFS) || 'null'); if (p) prefs = deepMerge(prefs, p); } catch (e) { }
 }
-function savePrefs() { try { localStorage.setItem(LS_PREFS, JSON.stringify(prefs)); } catch (e) { } }
-function saveLocal() { try { localStorage.setItem(LS_DATA, JSON.stringify(DB)); } catch (e) { } }
-function loadLocal() { try { const d = JSON.parse(localStorage.getItem(LS_DATA) || 'null'); return d ? normalizeDB(d) : null; } catch (e) { return null; } }
+function savePrefs() {
+  if (prefs.fb.campaign) prefs.fb.me[prefs.fb.campaign] = prefs.me;   // "I am" is remembered per campaign
+  try { localStorage.setItem(LS_PREFS, JSON.stringify(prefs)); } catch (e) { }
+}
+/* each campaign has its own local copy; '' = local-only data */
+const lsDataKey = (code = prefs.fb.campaign) => code ? LS_DATA + ':' + code : LS_DATA;
+function saveLocal() { try { localStorage.setItem(lsDataKey(), JSON.stringify(DB)); } catch (e) { } }
+function loadLocal(code = prefs.fb.campaign) {
+  try { const d = JSON.parse(localStorage.getItem(lsDataKey(code)) || 'null'); return d ? normalizeDB(d) : null; } catch (e) { return null; }
+}
+function dropLocal(code) { try { localStorage.removeItem(lsDataKey(code)); } catch (e) { } }
 function deepMerge(a, b) {
   const o = Array.isArray(a) ? a.slice() : Object.assign({}, a);
   for (const k in b) o[k] = (b[k] && typeof b[k] === 'object' && !Array.isArray(b[k]) && a[k] && typeof a[k] === 'object') ? deepMerge(a[k], b[k]) : b[k];
@@ -1445,20 +1458,24 @@ function renderSettings() {
   ` : ''}${st === 'sync' ? `
 
   <div class="panel"><h2>☁ Live sync (Firebase)</h2>
-    <p class="help">Everyone who opens the share link sees the same inventory, live. Changes are saved field by field the moment you make them,
-    so several players can edit at the same time — even the same item, as long as it's different fields. Coins and quantities are saved as
-    <i>changes</i> (+5 gp, −1 arrow), so two players paying at once both count. No accounts or tokens: the campaign code in the link is the key, so only share it with the group.</p>
-    <div class="fgrid">
-      <label class="f full">Campaign code <input id="fbCode" value="${esc(prefs.fb.campaign)}" placeholder="e.g. party-x7k2q9m4" autocomplete="off" spellcheck="false"></label>
-    </div>
-    <div class="toolbar" style="margin-top:10px">
-      ${prefs.fb.campaign ? `<button data-set="fbShare" class="gold" title="Copies a link with the campaign code for your players">Copy share link</button>
-      <button data-set="fbJoin" title="Switch to the campaign code above">Switch campaign</button>
-      <button data-set="fbLeave" title="Stop syncing — this browser keeps a local copy">Disconnect</button>`
-      : `<button data-set="fbJoin" class="gold" title="Join an existing campaign — its data replaces what's in this browser">Join campaign</button>
-      <button data-set="fbCreate" title="Upload what's in this browser as a new shared campaign">Create new campaign from this data</button>`}
-      <span id="ghMsg" class="small muted"></span>
-    </div>
+    <p class="help">Everyone who opens a campaign's share link sees the same inventory, live. Changes are saved field by field the moment you make them,
+    so several players can edit at the same time. Coins and quantities are saved as <i>changes</i> (+5 gp, −1 arrow), so two players paying at once both count.
+    The campaign code in the link is the key, so only share it with the group.</p>
+    <h3 class="subh">My campaigns</h3>
+    ${prefs.fb.list.length ? `<div class="camplist">${prefs.fb.list.map(c => `<div class="camprow ${c.code === prefs.fb.campaign ? 'on' : ''}">
+      <span class="nm"><b>${esc(c.name || c.code)}</b> <code>${esc(c.code)}</code>${c.code === prefs.fb.campaign ? ' <span class="small muted">· open</span>' : ''}</span>
+      ${c.code === prefs.fb.campaign ? `<button class="small gold" data-set="fbShare" title="Copies a link with the campaign code for your players">Copy share link</button>`
+        : `<button class="small" data-set="fbOpen" data-code="${esc(c.code)}">Open</button>`}
+      <button class="small" data-set="fbForget" data-code="${esc(c.code)}" title="Remove from this browser's list. The campaign itself is not deleted — you can join again with the code.">Remove</button>
+    </div>`).join('')}</div>` : '<p class="muted small">None yet — join one with a code, or create a new one.</p>'}
+    <h3 class="subh">Join a campaign</h3>
+    <div class="toolbar"><input id="fbCode" placeholder="campaign code, e.g. party-x7k2q9m4" autocomplete="off" spellcheck="false" style="flex:1;min-width:200px">
+      <button data-set="fbJoin">Join</button></div>
+    <h3 class="subh">Create a new campaign</h3>
+    <div class="toolbar"><input id="fbName" placeholder="name, e.g. Curse of Strahd" autocomplete="off" style="flex:1;min-width:200px">
+      <label class="small"><input type="checkbox" id="fbCopy" ${prefs.fb.campaign ? '' : 'checked'}> start with a copy of the data shown now</label>
+      <button data-set="fbCreate">Create</button></div>
+    <div class="small muted" id="ghMsg" style="margin-top:6px"></div>
   </div>
 
   ` : ''}${st === 'data' ? `
@@ -1569,15 +1586,20 @@ function bindSettings() {
       case 'fbJoin': {
         const code = fbCleanCode($('#fbCode').value);
         if (!code) { $('#ghMsg').textContent = 'Enter a campaign code (at least 8 letters/digits).'; return; }
-        if (prefs.fb.campaign && !armed(b, '', 'Switch campaign?')) return;
         $('#ghMsg').textContent = 'Connecting…';
-        fbConnect(code).then(() => { renderSettings(); toast('Connected to ' + code); }, e => { $('#ghMsg') && ($('#ghMsg').textContent = e.message); });
+        fbConnect(code).then(() => toast('Joined ' + (fbEntry(code)?.name || code)), e => { $('#ghMsg') && ($('#ghMsg').textContent = e.message); });
         break;
       }
+      case 'fbOpen': fbConnect(b.dataset.code).catch(e => { $('#ghMsg') && ($('#ghMsg').textContent = e.message); }); break;
       case 'fbCreate': {
-        const code = fbCleanCode($('#fbCode').value) || fbNewCode();
+        const name = $('#fbName').value.trim();
+        const copy = $('#fbCopy').checked;
+        if (!name && !copy) { $('#ghMsg').textContent = 'Give the new campaign a name.'; $('#fbName').focus(); return; }
+        const data = copy ? normalizeDB(clone(DB)) : seedDB();
+        if (name) { data.meta.name = name; data.meta.updatedAt = now(); }
+        if (!copy) data.log = [];
         $('#ghMsg').textContent = 'Creating…';
-        fbConnect(code, { create: true }).then(() => { renderSettings(); toast('Campaign created — copy the share link for your players'); }, e => { $('#ghMsg') && ($('#ghMsg').textContent = e.message); });
+        fbConnect(fbNewCode(data.meta.name), { create: true, data }).then(() => toast('Campaign created — copy the share link for your players'), e => { $('#ghMsg') && ($('#ghMsg').textContent = e.message); });
         break;
       }
       case 'fbShare': {
@@ -1587,9 +1609,10 @@ function bindSettings() {
         (navigator.clipboard ? navigator.clipboard.writeText(s) : Promise.reject()).then(() => toast('Share link copied'), () => { $('#ghMsg').textContent = s; });
         break;
       }
-      case 'fbLeave': {
-        if (!armed(b, '', 'Disconnect?')) return;
-        fbDisconnect(); prefs.fb.campaign = ''; savePrefs(); idleStatus(); renderSettings(); toast('Disconnected — local copy kept in this browser');
+      case 'fbForget': {
+        const code = b.dataset.code;
+        if (!armed(b, '', 'Remove?')) return;
+        fbForget(code); toast('Removed from your list — the campaign itself still exists');
         break;
       }
       case 'export': exportJSON(); break;
@@ -1875,8 +1898,8 @@ let FB = null, fbRef = null, fbUnsub = null, fbConnUnsub = null;
 let BASE = null, fbLatest, fbApplyT, fbOnline = false, fbPending = 0, fbLastErr = '';
 
 function fbCleanCode(s) { const c = String(s || '').trim().toLowerCase().replace(/[^a-z0-9-]/g, ''); return c.length >= 8 ? c.slice(0, 60) : ''; }
-function fbNewCode() {
-  const slug = vslug(DB.meta.name || 'party').replace(/[^a-z0-9-]/g, '').slice(0, 20) || 'party';
+function fbNewCode(name) {
+  const slug = vslug(name || DB.meta.name || 'party').replace(/[^a-z0-9-]/g, '').slice(0, 20) || 'party';
   const r = Array.from(crypto.getRandomValues(new Uint8Array(8)), b => 'abcdefghjkmnpqrstuvwxyz23456789'[b % 31]).join('');
   return slug + '-' + r;
 }
@@ -1958,30 +1981,64 @@ function fbApply() {
   DB = fromRemote(fbLatest); BASE = clone(DB);
   if (syncLinked() | ensureVocab()) fbPush();
   saveLocal();
+  const ent = fbEntry(prefs.fb.campaign);
+  if (ent && DB.meta.name && ent.name !== DB.meta.name) { ent.name = DB.meta.name; savePrefs(); renderHeader(); }
   if (canon(DB) !== before) refreshAfterRemote();
   idleStatus();
 }
 
+const fbEntry = code => prefs.fb.list.find(c => c.code === code);
+function fbRemember(code, name) {
+  const e = fbEntry(code);
+  if (e) { if (name) e.name = name; } else prefs.fb.list.push({ code, name: name || '' });
+}
+/* connect to (or switch to) a campaign. opts.create + opts.data: upload data as a new campaign */
 async function fbConnect(code, opts = {}) {
   setStatus('busy', 'Connecting…');
   try { await fbLoad(); }
-  catch (e) { throw new Error(/admin-restricted|operation-not-allowed/.test(e.code || '') ? 'Turn on Anonymous sign-in in Firebase → Authentication' : 'Could not reach Firebase: ' + (e.code || e.message)); }
+  catch (e) { idleStatus(); throw new Error(/admin-restricted|operation-not-allowed/.test(e.code || '') ? 'Turn on Anonymous sign-in in Firebase → Authentication' : 'Could not reach Firebase: ' + (e.code || e.message)); }
   const ref = FB.ref(FB.db, 'campaigns/' + code);
+  let remoteName = '';
   try {
+    const s = await FB.get(ref);
     if (opts.create) {
-      const s = await FB.get(ref);
       if (s.exists()) throw new Error('That campaign code is already in use');
-      await FB.set(ref, toRemote(DB));
+      await FB.set(ref, toRemote(opts.data || DB));
     } else {
-      const s = await FB.get(ref);
       if (!s.exists()) throw new Error('No campaign with that code');
+      remoteName = s.child('meta/name').val() || '';
     }
-  } catch (e) { setStatus('err', 'Connect failed'); throw e.code === 'PERMISSION_DENIED' ? new Error('Not allowed — check the database rules') : e; }
-  fbDisconnect();
-  prefs.fb.campaign = code; savePrefs();
+  } catch (e) { idleStatus(); throw e.code === 'PERMISSION_DENIED' ? new Error('Not allowed — check the database rules') : e; }
+  const switching = code !== prefs.fb.campaign || !fbRef;
+  if (code !== prefs.fb.campaign) {
+    saveLocal();                                        // park the current campaign's local copy
+    fbDisconnect();
+    if (prefs.fb.campaign) prefs.fb.me[prefs.fb.campaign] = prefs.me;
+    prefs.fb.campaign = code;
+    prefs.me = prefs.fb.me[code] || '';
+    DB = loadLocal(code) || normalizeDB(opts.data ? clone(opts.data) : seedDB());
+    sel.clear(); openLoc = ''; if (drawer.mode) closeDrawer();
+  } else fbDisconnect();
+  fbRemember(code, opts.data?.meta?.name || remoteName);
+  savePrefs();
+  if (switching) { renderAll(); }
   fbRef = ref; BASE = null;
   fbUnsub = FB.onValue(ref, fbOnValue, e => { setStatus('err', 'Live sync stopped: ' + (e.code || e.message)); });
   fbConnUnsub = FB.onValue(FB.ref(FB.db, '.info/connected'), s => { fbOnline = !!s.val(); idleStatus(); });
+  idleStatus();
+}
+/* remove a campaign from this browser's list (the campaign itself is untouched) */
+function fbForget(code) {
+  prefs.fb.list = prefs.fb.list.filter(c => c.code !== code);
+  delete prefs.fb.me[code];
+  if (code === prefs.fb.campaign) {
+    fbDisconnect(); dropLocal(code);
+    const next = prefs.fb.list[0];
+    prefs.fb.campaign = ''; prefs.me = '';
+    savePrefs();
+    if (next) { fbConnect(next.code).catch(e => setStatus('err', e.message.slice(0, 60))); return; }
+    DB = loadLocal('') || seedDB(); renderAll(); idleStatus();
+  } else { dropLocal(code); savePrefs(); renderAll(); }
 }
 function fbDisconnect() {
   if (fbUnsub) fbUnsub(); if (fbConnUnsub) fbConnUnsub();
@@ -2018,7 +2075,13 @@ function refreshAfterRemote() {
 /* =================== HEADER / TABS / INIT =================== */
 function applyTheme() { document.documentElement.setAttribute('data-theme', prefs.theme === 'dark' ? 'dark' : 'light'); }
 function renderHeader() {
+  const list = prefs.fb.list, multi = list.length > 1, cs = $('#campSel');
   $('#campName').textContent = DB.meta.name || '';
+  $('#campName').classList.toggle('hidden', multi);
+  cs.classList.toggle('hidden', !multi);
+  if (multi && document.activeElement !== cs)
+    cs.innerHTML = list.map(c => `<option value="${esc(c.code)}" ${c.code === prefs.fb.campaign ? 'selected' : ''}>${esc(c.code === prefs.fb.campaign ? (DB.meta.name || c.name || c.code) : (c.name || c.code))}</option>`).join('')
+      + '<option value="__add">＋ Join / create campaign…</option>';
   $('#meSel').innerHTML = playerOptions(prefs.me, '— who? —') + `<option value="dm" ${prefs.me === 'dm' ? 'selected' : ''}>DM</option>`;
   document.title = (DB.meta.name ? DB.meta.name + ' · ' : '') + 'Group Inventory';
 }
@@ -2045,19 +2108,27 @@ function renderAll(keep = []) {
 
 function readUrlParams() {
   try {
-    const c = fbCleanCode(new URLSearchParams(location.search).get('c') || '');
-    if (c) { const changed = c !== prefs.fb.campaign; prefs.fb.campaign = c; savePrefs(); return changed; }
-  } catch (e) { }
-  return false;
+    const u = new URL(location.href), c = fbCleanCode(u.searchParams.get('c') || '');
+    if (u.searchParams.has('c')) { u.searchParams.delete('c'); history.replaceState(null, '', u.toString()); }
+    return c;
+  } catch (e) { return ''; }
 }
 
 async function init() {
   loadPrefs(); applyTheme();
   if (!SORTERS[prefs.sort.key]) prefs.sort.key = 'name';
   if (!['', 'req', 'none'].includes(prefs.filters.attune)) prefs.filters.attune = '';
-  const newCampaign = readUrlParams();
+  const urlCode = readUrlParams();
+  if (!Array.isArray(prefs.fb.list)) prefs.fb.list = [];
+  if (!prefs.fb.me || typeof prefs.fb.me !== 'object') prefs.fb.me = {};
+  if (prefs.fb.campaign) {
+    fbRemember(prefs.fb.campaign);
+    // older single-campaign version kept its copy under the plain key: move it
+    if (!loadLocal() && loadLocal('')) { try { localStorage.setItem(lsDataKey(), localStorage.getItem(lsDataKey(''))); localStorage.removeItem(lsDataKey('')); } catch (e) { } }
+    if (prefs.fb.me[prefs.fb.campaign] !== undefined) prefs.me = prefs.fb.me[prefs.fb.campaign];
+  }
   const local = loadLocal();
-  if (local && !newCampaign) DB = local;
+  if (local) DB = local;
   else if (!prefs.fb.campaign) {
     // first run: try the starter file next to the page (works when served over http/GitHub Pages)
     try { const r = await fetch('inventory-data.json', { cache: 'no-store' }); if (r.ok) DB = normalizeDB(await r.json()); } catch (e) { }
@@ -2083,7 +2154,13 @@ async function init() {
   new MutationObserver(() => requestAnimationFrame(navVis)).observe($('main'), { childList: true, subtree: true });
   showTab(prefs.tab || 'inv');
   idleStatus();
-  if (prefs.fb.campaign) fbConnect(prefs.fb.campaign).catch(e => { console.error(e); setStatus('err', e.message.slice(0, 60)); });
+  const startCode = urlCode || prefs.fb.campaign;
+  if (startCode) fbConnect(startCode).catch(e => { console.error(e); setStatus('err', e.message.slice(0, 60)); if (urlCode) toast('Could not open campaign: ' + e.message); });
+  $('#campSel').addEventListener('change', e => {
+    const v = e.target.value;
+    if (v === '__add') { e.target.value = prefs.fb.campaign; prefs.setTab = 'sync'; showTab('set'); setTimeout(() => $('#fbCode')?.focus(), 30); return; }
+    if (v !== prefs.fb.campaign) fbConnect(v).catch(er => { toast(er.message); renderHeader(); });
+  });
 }
 init();
 
