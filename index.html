@@ -286,7 +286,7 @@ tr.item:hover .qb,.qb:focus{opacity:1}
    Realtime Database (field-level writes, coins/qty as increments).
    ========================================================= */
 const APP_VERSION = 1;          // data format version (not the app build)
-const APP_BUILD = '2.3.0';     // shown top right — bump on every change
+const APP_BUILD = '2.3.1';     // shown top right — bump on every change
 const APP_BUILD_DATE = '2026-10-17';
 const LS_DATA = 'groupInvFb_data_v1';
 const LS_PREFS = 'groupInvFb_prefs_v1';
@@ -2240,9 +2240,16 @@ function stableJ(v) {
   if (typeof v === 'object') return '{' + Object.keys(v).filter(k => v[k] !== undefined && v[k] !== null).sort().map(k => JSON.stringify(k) + ':' + stableJ(v[k])).join(',') + '}';
   return JSON.stringify(v);
 }
+const fbKeyOk = k => typeof k === 'string' && k !== '' && !/[.#$\[\]\/]/.test(k);
+/* Firebase keys can't be empty or contain . # $ [ ] / — drop such keys anywhere in a value */
+function fbClean(v) {
+  if (Array.isArray(v)) return v.map(fbClean);
+  if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).filter(([k]) => fbKeyOk(k)).map(([k, x]) => [k, fbClean(x)]));
+  return v;
+}
 function toRemote(db) {
-  const d = clone(db), out = { app: 'group-inventory', version: APP_VERSION, meta: d.meta || {}, tombstones: d.tombstones || {} };
-  COLS.forEach(c => { out[c] = Object.fromEntries((d[c] || []).map(r => [r.id, r])); });
+  const d = clone(db), out = { app: 'group-inventory', version: APP_VERSION, meta: fbClean(d.meta || {}), tombstones: fbClean(d.tombstones || {}) };
+  COLS.forEach(c => { out[c] = Object.fromEntries((d[c] || []).filter(r => r && fbKeyOk(r.id)).map(r => [r.id, fbClean(r)])); });
   return out;
 }
 function fromRemote(v) {
@@ -2257,22 +2264,23 @@ function fromRemote(v) {
 function fbDiff(base, cur) {
   const up = {};
   const keys = (a, b) => new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
-  for (const k of keys(base.meta, cur.meta)) if (stableJ(base.meta?.[k]) !== stableJ(cur.meta?.[k])) up['meta/' + k] = cur.meta?.[k] ?? null;
-  for (const k of keys(base.tombstones, cur.tombstones)) if (base.tombstones?.[k] !== cur.tombstones?.[k]) up['tombstones/' + k] = cur.tombstones?.[k] ?? null;
+  for (const k of keys(base.meta, cur.meta)) if (fbKeyOk(k) && stableJ(base.meta?.[k]) !== stableJ(cur.meta?.[k])) up['meta/' + k] = fbClean(cur.meta?.[k] ?? null);
+  for (const k of keys(base.tombstones, cur.tombstones)) if (fbKeyOk(k) && base.tombstones?.[k] !== cur.tombstones?.[k]) up['tombstones/' + k] = cur.tombstones?.[k] ?? null;
   for (const c of COLS) {
     const bm = new Map((base[c] || []).map(r => [r.id, r]));
     const inc = INC_FIELDS[c] || [];
     for (const r of (cur[c] || [])) {
       const b = bm.get(r.id); bm.delete(r.id);
-      if (!b) { up[`${c}/${r.id}`] = r; continue; }
+      if (!r || !fbKeyOk(r.id)) continue;
+      if (!b) { up[`${c}/${r.id}`] = fbClean(r); continue; }
       for (const k of keys(b, r)) {
-        if (stableJ(b[k]) === stableJ(r[k])) continue;
+        if (!fbKeyOk(k) || stableJ(b[k]) === stableJ(r[k])) continue;
         const path = `${c}/${r.id}/${k}`;
         if (inc.includes(k) && typeof b[k] === 'number' && typeof r[k] === 'number') up[path] = FB.increment(r[k] - b[k]);
-        else up[path] = r[k] ?? null;
+        else up[path] = fbClean(r[k] ?? null);
       }
     }
-    for (const id of bm.keys()) up[`${c}/${id}`] = null;
+    for (const id of bm.keys()) if (fbKeyOk(id)) up[`${c}/${id}`] = null;
   }
   return up;
 }
@@ -2318,7 +2326,7 @@ let fbUser = null, fbRole = '', fbWatch = [], fbReqs = {}, fbMembers = {}, fbGat
 
 const fbIsCreator = () => !!(fbUser && fbUser.emailVerified && String(fbUser.email || '').toLowerCase() === OWNER_EMAIL);
 const fbMe = extra => Object.assign({ name: (fbUser && fbUser.displayName) || '', email: (fbUser && fbUser.email) || '', at: now() }, extra || {});
-const fbR = path => FB.ref(FB.db, path);
+const fbR = path => path ? FB.ref(FB.db, path) : FB.ref(FB.db);   // '' is not a valid path: no argument = the root
 const isDenied = e => e && (e.code === 'PERMISSION_DENIED' || /permission/i.test(e.message || ''));
 
 function fbAuthMsg(e) {
