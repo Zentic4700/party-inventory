@@ -47,6 +47,7 @@ header{position:sticky;top:0;z-index:20;background:var(--bg2)}
 :root{--gutter:64px;--drawer-w:min(680px,100vw)}
 @media (max-width:760px){:root{--gutter:10px}}
 .hrow{display:flex;align-items:center;gap:12px;padding:8px var(--gutter);flex-wrap:wrap}
+.ver{font-size:11px;color:var(--muted);white-space:nowrap;align-self:flex-start;margin-top:2px;opacity:.8}
 .brand h1{font-size:20px;color:var(--gold)} .brand .camp{font-size:13px;color:var(--muted)}
 .campsel{font:inherit;font-size:13px;color:var(--muted);background:transparent;border:1px solid transparent;border-radius:4px;padding:0 2px;margin-left:-3px;cursor:pointer;max-width:260px}
 .campsel:hover,.campsel:focus{border-color:var(--line2);color:var(--ink)} .campsel option{background:var(--panel);color:var(--ink)}
@@ -201,6 +202,12 @@ tfoot td{font-weight:600;background:var(--panel2)}
 .lgt{font-family:Cinzel,serif;font-size:12px;font-weight:700}
 .lg-added{color:var(--good)} .lg-moved{color:var(--r-rare)} .lg-edited{color:var(--muted)} .lg-deleted{color:var(--bad)}
 .lg-coins{color:var(--gold)} .lg-container{color:var(--magic)} .lg-settings{color:var(--warn)} .lg-note{color:var(--ink)}
+.lg-archived{color:var(--warn)} .lg-returned{color:var(--good)} .b-arc{color:var(--muted);margin-right:6px}
+details.sect>summary{cursor:pointer;list-style:none} details.sect>summary::-webkit-details-marker{display:none}
+details.sect>summary h4{display:inline;margin:0} details.sect>summary h4::before{content:'▸ ';color:var(--gold)} details.sect[open]>summary h4::before{content:'▾ '}
+details.sect[open]>summary{margin-bottom:6px}
+.hlist{list-style:none;padding:0;margin:0;font-size:13px} .hlist li{padding:3px 0;border-bottom:1px dotted var(--line)}
+.arct td{vertical-align:top} .arct button{white-space:nowrap} .arclink{color:var(--gold);cursor:pointer;text-decoration:underline dotted}
 .logt td{vertical-align:top}
 .lglink{color:var(--ink);text-decoration:underline dotted;cursor:pointer} .lglink:hover{color:var(--gold)}
 tr.lgedit td{background:var(--panel2)} tr.lgedit input,tr.lgedit select{font-size:13px;padding:3px 5px}
@@ -240,11 +247,13 @@ tr.item:hover .qb,.qb:focus{opacity:1}
     <div class="cloud"><span class="dot" id="syncDot"></span><span id="syncText" class="muted">Local only</span>
       <button id="syncBtn" class="ghost" title="Live sync status">☁</button></div>
     <button id="themeBtn" class="ghost" title="Toggle parchment / leather theme">☾</button>
+    <span class="ver" id="appVer"></span>
   </div>
   <nav class="tabs" id="tabs">
     <button data-tab="inv" class="on"><span class="ti">⚒</span>Inventory</button>
     <button data-tab="loc"><span class="ti">▣</span>Containers &amp; Locations</button>
     <button data-tab="cur"><span class="ti">◉</span>Currency</button>
+    <button data-tab="arc"><span class="ti">⚱</span>Archive</button>
     <button data-tab="log"><span class="ti">✎</span>Log</button>
     <button data-tab="set"><span class="ti">⚙</span>Settings</button>
   </nav>
@@ -254,6 +263,7 @@ tr.item:hover .qb,.qb:focus{opacity:1}
   <section id="tab-inv"></section>
   <section id="tab-loc" class="hidden"></section>
   <section id="tab-cur" class="hidden"></section>
+  <section id="tab-arc" class="hidden"></section>
   <section id="tab-log" class="hidden"></section>
   <section id="tab-set" class="hidden"></section>
 </main>
@@ -269,10 +279,12 @@ tr.item:hover .qb,.qb:focus{opacity:1}
    Data: one JSON document, synced live through Firebase
    Realtime Database (field-level writes, coins/qty as increments).
    ========================================================= */
-const APP_VERSION = 1;
+const APP_VERSION = 1;          // data format version (not the app build)
+const APP_BUILD = '2.2.0';     // shown top right — bump on every change
+const APP_BUILD_DATE = '2026-10-17';
 const LS_DATA = 'groupInvFb_data_v1';
 const LS_PREFS = 'groupInvFb_prefs_v1';
-const COLS = ['players', 'locations', 'items', 'purses', 'ledger', 'log', 'vocab'];
+const COLS = ['players', 'locations', 'items', 'purses', 'ledger', 'log', 'vocab', 'archive'];
 const COINS = ['pp', 'gp', 'ep', 'sp', 'cp'];
 const COIN_CP = { pp: 1000, gp: 100, ep: 50, sp: 10, cp: 1 };
 const RARITIES = ['Mundane', 'Common', 'Uncommon', 'Rare', 'Very Rare', 'Legendary', 'Artifact', 'Varies', 'Unknown'];
@@ -309,6 +321,7 @@ function seedDB() {
     ledger: [],
     log: [],
     vocab: [],
+    archive: [],
     tombstones: {}
   };
 }
@@ -364,6 +377,7 @@ let prefs = {
   filters: { q: '', holder: '', nested: true, type: '', rarity: '', magic: '', attune: '', tag: '' },
   sort: { key: 'name', dir: 1 }, group: 'none',
   logf: { q: '', types: [], by: '', from: '', to: '', dir: -1 },
+  arcf: { q: '', reason: '', who: '', dir: -1 },
   setTab: 'chars'
 };
 let dirty = false;
@@ -483,6 +497,7 @@ const sortedLocs = () => DB.locations.slice().sort((a, b) => num(a.order) - num(
 function holderName(id) {
   if (!id) return 'Unassigned';
   if (id === 'party') return 'Party Fund';
+  if (id === ARCHIVE_ID) return 'Archive';
   const p = getPlayer(id); if (p) return p.name || '(unnamed)';
   const l = getLoc(id); if (l) return l.name || '(unnamed)';
   return '(removed)';
@@ -688,6 +703,9 @@ function bulkBar() {
   if (!ids.length) return '';
   return `<div class="bulk"><b>${ids.length} selected</b> · Move to <select id="bulkTo">${holderOptions('')}</select>
     <button data-act="bulkMove">Move</button>
+    <span class="small muted">·</span> <select id="bulkArReason" title="Archive reason">${Object.entries(ARC_REASONS).map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select>
+    <select id="bulkArWho" title="Who">${playerOptions(getPlayer(prefs.me) ? prefs.me : '', '— nobody —')}</select>
+    <button data-act="bulkArc">⚱ Archive</button>
     <button data-act="bulkDel" class="danger">Delete</button>
     <button data-act="bulkClear" class="ghost">Clear selection</button></div>`;
 }
@@ -729,7 +747,7 @@ function renderInventory() {
     </div></div>
     ${bulkBar()}
     ${itemsTable(list, INV_COLS.map(c => c[0]), { empty: DB.items.length ? 'No items match the filters.' : 'The party has nothing yet. Click <b>+ Add item</b> to start.' })}
-    <p class="small muted">Showing ${list.length} of ${DB.items.length} items · Total party item value ${fmtCp(DB.items.reduce((s, i) => s + itemValue(i), 0))} · Coins ${fmtGp(DB.purses.reduce((s, p) => s + coinValue(p), 0))}</p>`;
+    <p class="small muted">Showing ${list.length} of ${DB.items.length} items${DB.archive.length ? ` · <a class="arclink" data-goto="arc">${DB.archive.length} archived</a>` : ''} · Total party item value ${fmtCp(DB.items.reduce((s, i) => s + itemValue(i), 0))} · Coins ${fmtGp(DB.purses.reduce((s, p) => s + coinValue(p), 0))}</p>`;
 }
 const CATALOG_TYPES = Array.from(new Set(CATALOG.map(c => c.type).filter(Boolean)));
 
@@ -797,6 +815,11 @@ function handleAct(act, btn, root) {
       sel.forEach(id => { const it = getItem(id); if (it && it.holderId !== to) { logItem('moved', it, { fromId: it.holderId, toId: to }); it.holderId = to; touch(it); n++; } });
       sel.clear(); commit(); toast(`Moved ${n} item${n === 1 ? '' : 's'} to ${holderName(to)}`); break;
     }
+    case 'bulkArc': {
+      const reason = $('#bulkArReason', root).value, takenBy = $('#bulkArWho', root).value; let n = 0;
+      Array.from(sel).forEach(id => { const it = getItem(id); if (it) { archiveItem(it, { reason, takenBy, contents: 'drop' }); n++; } });
+      sel.clear(); commit(); toast(`Archived ${n} item${n === 1 ? '' : 's'} — ${arcPhrase({ reason, takenBy })}`); break;
+    }
     case 'bulkDel': {
       if (!armed(btn, '', `Delete ${sel.size}?`)) return;
       let n = 0; Array.from(sel).forEach(id => { const it = getItem(id); if (it) { deleteItem(it); n++; } });
@@ -826,10 +849,10 @@ function setCharges(it, c) {
   logEdit(it, 'charges', it.charges, c); it.charges = c; touch(it); commit();
   if (drawer.mode === 'view' && drawer.id === it.id) renderDrawer();
 }
-function openItem(id) { drawer = { mode: 'view', id, draft: null, editDesc: false, newType: false, newTag: false, catQ: '', catSrc: drawer.catSrc || '' }; renderDrawer(); openDrawer(); }
+function openItem(id) { drawer = { mode: 'view', id, arc: !getItem(id) && !!getArc(id), draft: null, editDesc: false, newType: false, newTag: false, catQ: '', catSrc: drawer.catSrc || '' }; renderDrawer(); openDrawer(); }
 function openDrawer() { $('#drawer').classList.add('open'); document.body.classList.add('drawer-open'); }
 function closeDrawer() { $('#drawer').classList.remove('open'); document.body.classList.remove('drawer-open'); drawer.mode = null; }
-function curItem() { return drawer.mode === 'new' ? drawer.draft : getItem(drawer.id); }
+function curItem() { return drawer.mode === 'new' ? drawer.draft : drawer.arc ? getArc(drawer.id) : getItem(drawer.id); }
 const linkedLoc = it => it && it.id ? DB.locations.find(l => l.itemId === it.id) : null;
 
 function catStats(c) {
@@ -912,12 +935,15 @@ function renderView(it) {
     <div class="sect"><h4>Move / give</h4>
       <div class="toolbar"><input id="trQty" type="number" min="0" step="any" value="${esc(it.qty)}" style="width:70px"> to
       <select id="trTo" style="flex:1;min-width:0">${holderOptions('', { exclude: new Set([it.holderId, ...ownCont(it)]) })}</select><button data-dr="transfer">Move</button></div></div>
+    ${archiveForm(it)}
+    ${historyBlock(it)}
     <p class="small muted">${it.updatedAt > 1000 ? 'Changed ' + esc(fmtTime(it.updatedAt)) + (it.updatedBy ? ' by ' + esc(it.updatedBy) : '') : ''}</p>
   </div>`;
 }
 
 function renderDrawer() {
   const it = curItem();
+  if (it && drawer.arc) { drawer.mode = 'view'; renderArcView(it); return; }
   if (it && drawer.mode === 'view') { renderView(it); return; }
   const d = $('#drawer');
   if (!it) { closeDrawer(); return; }
@@ -1121,6 +1147,24 @@ function bindDrawer() {
       }
       case 'openCont': { const lk = DB.locations.find(l => l.itemId === it.id); if (lk) { closeDrawer(); openLoc = lk.id; showTab('loc'); } break; }
       case 'dup': { const n = Object.assign({}, it, { id: uid('it'), createdAt: now() }); touch(n); DB.items.push(n); logItem('added', n, { toId: n.holderId, text: 'duplicated, at ' + holderLabel(n.holderId) }); commit(); openItem(n.id); toast('Duplicated'); break; }
+      case 'archive': {
+        if (drawer.arc || drawer.mode === 'new') return;
+        const o = { qty: $('#arQty', d) ? num($('#arQty', d).value) : num(it.qty), reason: $('#arReason', d).value, takenBy: $('#arWho', d).value,
+          note: $('#arNote', d).value, contents: ($('input[name=arCont]:checked', d) || {}).value };
+        if (o.qty <= 0) { $('#arQty', d)?.focus(); return; }
+        const rec = archiveItem(it, o); commit();
+        if (getItem(it.id)) renderDrawer(); else closeDrawer();
+        toast(`${+num(rec.qty).toFixed(2)} × ${rec.name} archived — ${arcPhrase(rec.archived)}`); break;
+      }
+      case 'reactivate': {
+        if (!drawer.arc) return;
+        const dest = $('#axDest', d).value, res = reactivateItem(it, dest); commit(); openItem(res.id);
+        toast(`${it.name} is back at ${holderName(dest)}`); break;
+      }
+      case 'purge': {
+        if (!drawer.arc || !armed(b, '', 'Delete for good?')) return;
+        purgeArchived(it); closeDrawer(); commit(); toast(`${it.name} deleted permanently`); break;
+      }
       case 'del': {
         if (!armed(b)) return;
         const lk = linkedLoc(it);
@@ -1129,6 +1173,256 @@ function bindDrawer() {
     }
   });
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('#drawer').classList.contains('open')) closeDrawer(); });
+}
+
+/* =================== ARCHIVE ===================
+   Items that leave the party's books (to a character sheet, sold, lost…) move from DB.items to DB.archive
+   with the same id and all their fields, plus `archived` = { at, by, reason, takenBy, note, fromId, fromName,
+   srcId (when split off a stack), withId (when archived inside a container), locs (container snapshot) }.
+   holderId is always ARCHIVE_ID while archived, so it counts nowhere. */
+const ARCHIVE_ID = '__archive';
+const ARC_REASONS = { sheet: 'To character sheet', sold: 'Sold', lost: 'Lost / stolen', used: 'Used up', destroyed: 'Destroyed', gift: 'Given away', other: 'Other' };
+const getArc = id => DB.archive.find(x => x.id === id);
+
+function arcPhrase(a) {
+  const who = a.takenBy ? holderName(a.takenBy) : '';
+  switch (a.reason) {
+    case 'sheet': return who ? `to ${who}'s sheet` : 'to a character sheet';
+    case 'sold': return 'sold' + (who ? ` by ${who}` : '');
+    case 'lost': return 'lost' + (who ? ` by ${who}` : '');
+    case 'used': return 'used up' + (who ? ` by ${who}` : '');
+    case 'destroyed': return 'destroyed';
+    case 'gift': return 'given away' + (who ? ` by ${who}` : '');
+    default: return 'archived' + (who ? ` (${who})` : '');
+  }
+}
+/* coins kept in locations that disappear go to the Party Fund (same as deleting a location) */
+function coinsToParty(locIds) {
+  let moved = 0;
+  DB.purses.filter(p => locIds.has(p.holderId)).forEach(pu => {
+    if (coinValue(pu)) { const pf = ensurePurse('party'); COINS.forEach(c => pf[c] = int(pf[c]) + int(pu[c])); touch(pf); moved += coinValue(pu); }
+    DB.purses = DB.purses.filter(x => x !== pu); tombstone(pu.id);
+  });
+  return moved;
+}
+
+/* o: { qty, reason, takenBy, note, contents: 'drop' | 'with' } → the archived record */
+function archiveItem(it, o = {}) {
+  const lk = linkedLoc(it);
+  const total = num(it.qty);
+  const q = lk ? total : Math.min(Math.max(num(o.qty, total), 0) || total, total);
+  const info = { at: now(), by: meName(), reason: ARC_REASONS[o.reason] ? o.reason : 'other', takenBy: o.takenBy || '', note: (o.note || '').trim(),
+    fromId: it.holderId, fromName: holderLabel(it.holderId) };
+  let rec;
+  if (q < total) {                                   // part of a stack: the rest stays active
+    it.qty = +(total - q).toFixed(4); touch(it);
+    rec = Object.assign(clone(it), { id: uid('it'), qty: q, equipped: false });
+    info.srcId = it.id;
+  } else {
+    rec = it; DB.items = DB.items.filter(x => x !== it); sel.delete(it.id);
+  }
+  let extra = '';
+  if (lk) {
+    const coins = new Set();
+    if (o.contents === 'with') {                     // the container goes with everything inside it
+      const ids = descendantsOf(lk.id); ids.add(lk.id);
+      const inside = DB.items.filter(x => ids.has(x.holderId));
+      inside.forEach(x => {
+        x.archived = { at: info.at, by: info.by, reason: info.reason, takenBy: info.takenBy, note: '', fromId: x.holderId, fromName: holderLabel(x.holderId), withId: rec.id };
+        x.holderId = ARCHIVE_ID; touch(x); sel.delete(x.id);
+      });
+      DB.items = DB.items.filter(x => !inside.includes(x));
+      DB.archive.push(...inside);
+      info.locs = clone(DB.locations.filter(l => ids.has(l.id)));
+      info.withCount = inside.length;
+      DB.locations = DB.locations.filter(l => !ids.has(l.id));
+      ids.forEach(i => coins.add(i));
+      extra = inside.length ? ` · with ${inside.length} item${inside.length === 1 ? '' : 's'} inside` : '';
+    } else {                                          // contents fall out to whoever carried it
+      let n = 0;
+      DB.items.forEach(x => { if (x.holderId === lk.id) { x.holderId = info.fromId; touch(x); n++; } });
+      DB.locations.forEach(x => { if (x.parentId === lk.id) { x.parentId = info.fromId; touch(x); n++; } });
+      info.locs = [clone(lk)];
+      DB.locations = DB.locations.filter(l => l !== lk);
+      coins.add(lk.id);
+      extra = n ? ` · contents moved to ${info.fromName || 'Unassigned'}` : '';
+    }
+    const cp = coinsToParty(coins);
+    if (cp) extra += ` · ${fmtCp(cp)} in coins moved to the Party Fund`;
+    if (openLoc && !getLoc(openLoc)) openLoc = '';
+  }
+  rec.holderId = ARCHIVE_ID; rec.archived = info; touch(rec);
+  DB.archive.push(rec);
+  logItem('archived', rec, { qty: q, relId: info.srcId || '', fromId: info.fromId, note: info.note,
+    text: `${arcPhrase(info)} · from ${info.fromName || 'Unassigned'}${info.srcId ? ` (${+num(it.qty).toFixed(2)} left there)` : ''}${extra}` });
+  return rec;
+}
+
+/* bring it back; returns the active item it ended up as */
+function reactivateItem(rec, dest) {
+  const a = rec.archived || {};
+  const src = a.srcId && getItem(a.srcId);
+  DB.archive = DB.archive.filter(x => x !== rec);
+  let result, text;
+  if (src && src.holderId === dest) {               // back onto the stack it was split from
+    src.qty = +(num(src.qty) + num(rec.qty)).toFixed(4); touch(src);
+    result = src; text = `returned to ${holderLabel(dest)} (stack now ${src.qty})`;
+  } else {
+    delete rec.archived; rec.holderId = dest; touch(rec); DB.items.push(rec); result = rec;
+    text = `returned to ${holderLabel(dest)}`;
+    if (a.locs && a.locs.length) {                  // it was a container: rebuild it (and what was archived inside it)
+      a.locs.forEach(l => { if (getLoc(l.id)) return; const nl = clone(l); if (nl.itemId === rec.id) nl.parentId = dest; touch(nl); DB.locations.push(nl); });
+      const inside = DB.archive.filter(x => x.archived && x.archived.withId === rec.id);
+      inside.forEach(x => { const f = x.archived.fromId; delete x.archived; x.holderId = getLoc(f) ? f : dest; touch(x); });
+      DB.archive = DB.archive.filter(x => !inside.includes(x));
+      DB.items.push(...inside);
+      if (inside.length) text += ` with ${inside.length} item${inside.length === 1 ? '' : 's'} inside`;
+    }
+  }
+  logEvent('returned', { itemId: result.id, itemName: rec.name, qty: num(rec.qty), relId: rec.id !== result.id ? rec.id : '', toId: dest, text });
+  return result;
+}
+/* where Reactivate suggests: the stack it came from, else where it was, else unassigned */
+function arcDefaultDest(rec) {
+  const a = rec.archived || {}, src = a.srcId && getItem(a.srcId);
+  if (src) return src.holderId;
+  if (!a.fromId || a.fromId === 'party' || getPlayer(a.fromId) || getLoc(a.fromId)) return a.fromId || '';
+  return '';
+}
+function purgeArchived(rec) {
+  DB.archive = DB.archive.filter(x => x !== rec); tombstone(rec.id);
+  DB.archive.forEach(x => { if (x.archived && x.archived.withId === rec.id) { x.archived.withId = ''; touch(x); } });
+  logEvent('deleted', { itemId: rec.id, itemName: rec.name, qty: num(rec.qty), text: 'deleted permanently from the archive' });
+}
+/* everything the log knows about this item (and the stack it was split from / into) */
+function itemHistory(it) {
+  const ids = new Set([it.id]); if (it.archived && it.archived.srcId) ids.add(it.archived.srcId);
+  return DB.log.filter(e => ids.has(e.itemId) || ids.has(e.relId)).sort((a, b) => num(b.ts) - num(a.ts));
+}
+function historyBlock(it) {
+  const h = itemHistory(it); if (!h.length) return '';
+  return `<details class="sect hist"><summary><h4>History · ${h.length}</h4></summary><ul class="hlist">${h.slice(0, 60).map(e =>
+    `<li><span class="small muted">${esc(fmtTime(e.ts))}${e.by ? ' · ' + esc(e.by) : ''}</span> <span class="lgt lg-${esc(e.action)}">${esc(LOG_TYPES[e.action] || e.action)}</span> ${esc(logDetail(e))}${e.qty && e.qty !== 1 && e.action !== 'edited' ? ` <span class="muted">× ${esc(+num(e.qty).toFixed(2))}</span>` : ''}${e.note ? ` <i class="small">— ${esc(e.note)}</i>` : ''}</li>`).join('')}</ul></details>`;
+}
+
+/* the "Archive" fold-out on an active item's card */
+function archiveForm(it) {
+  const lk = linkedLoc(it);
+  const owner = holderPath(it.holderId)[0];
+  const who = getPlayer(owner) ? owner : (getPlayer(prefs.me) ? prefs.me : '');
+  return `<details class="sect arcform"><summary><h4>Archive <span class="small muted">— to a character sheet, sold, lost…</span></h4></summary>
+    <div class="toolbar">${lk || num(it.qty) <= 1 ? '' : `<input id="arQty" type="number" min="0" step="any" value="${esc(it.qty)}" style="width:70px" title="How many — the rest stays in the inventory"> ×`}
+      <select id="arReason">${Object.entries(ARC_REASONS).map(([k, l]) => `<option value="${k}">${l}</option>`).join('')}</select>
+      <label class="small">who <select id="arWho">${playerOptions(who, '— nobody —')}</select></label></div>
+    <div class="toolbar" style="margin-top:6px"><input id="arNote" placeholder="Note (optional) — e.g. sold in Neverwinter for 40 gp" style="flex:1;min-width:0"></div>
+    ${lk ? `<div class="checks small" style="margin-top:6px">
+      <label><input type="radio" name="arCont" value="drop" checked> contents fall out to ${esc(holderName(it.holderId))}</label>
+      <label><input type="radio" name="arCont" value="with"> archive contents with it</label></div>` : ''}
+    <div class="toolbar" style="margin-top:6px"><button data-dr="archive">⚱ Archive</button>
+      <span class="small muted">Leaves the inventory, weights and totals. Nothing is lost — it can be reactivated.</span></div>
+  </details>`;
+}
+
+/* card for an archived item */
+function renderArcView(it) {
+  const d = $('#drawer'), a = it.archived || {};
+  const src = a.srcId && getItem(a.srcId);
+  const withItems = DB.archive.filter(x => x.archived && x.archived.withId === it.id);
+  const dest = arcDefaultDest(it);
+  const row = (k, v) => v === '' || v == null ? '' : `<dt>${k}</dt><dd>${v}</dd>`;
+  const sub = [it.rarity && it.rarity !== 'Mundane' ? `<span class="${rarClass(it.rarity)}">${esc(it.rarity)}</span>` : '', esc(it.type || '')].filter(Boolean).join(' · ');
+  d.innerHTML = `
+  <div class="dr-head"><h3 id="drTitle">${esc(it.name || '(unnamed)')}</h3><span class="badge b-arc">⚱ archived</span>
+    <button class="ghost" data-dr="close" title="Close (Esc)">✕</button></div>
+  <div class="view">
+    ${sub ? `<div class="vsub">${sub}</div>` : ''}
+    <dl class="vlist">
+      ${row('Quantity', esc(+num(it.qty).toFixed(2)))}
+      ${row('Value', num(it.valueCp) ? fmtCp(itemValue(it)) : '—')}
+      ${row('Reason', `<select id="axReason">${Object.entries(ARC_REASONS).map(([k, l]) => `<option value="${k}" ${k === a.reason ? 'selected' : ''}>${l}</option>`).join('')}</select>`)}
+      ${row('Who', `<select id="axWho">${playerOptions(a.takenBy, '— nobody —')}</select>`)}
+      ${row('Archived', esc(fmtTime(a.at)) + (a.by ? ' by ' + esc(a.by) : ''))}
+      ${row('Came from', esc(a.fromName || 'Unassigned') + (a.withId ? ` <span class="muted">(inside ${esc(getArc(a.withId)?.name || 'a container')})</span>` : ''))}
+      ${row('Note', `<input id="axNote" value="${esc(a.note || '')}" placeholder="—" style="width:100%">`)}
+    </dl>
+    ${withItems.length ? `<div class="sect"><h4>▣ Archived with ${withItems.length} item(s) inside</h4><ul class="vcont">${withItems.map(x => `<li><a data-goitem="${esc(x.id)}">${esc(x.name)}</a>${num(x.qty) !== 1 ? ' × ' + esc(+num(x.qty).toFixed(2)) : ''}</li>`).join('')}</ul></div>` : ''}
+    <div class="sect" id="arcBack"><h4>↩ Reactivate</h4>
+      <div class="toolbar">Return to <select id="axDest" style="flex:1;min-width:0">${holderOptions(dest)}</select><button class="gold" data-dr="reactivate">Reactivate</button></div>
+      <p class="small muted" id="axHint">${src ? `The other ${esc(+num(src.qty).toFixed(2))} are at ${esc(holderLabel(src.holderId))} — returning it there adds it back onto that stack.` : 'It comes back as the same item, with its notes, charges and history.'}</p></div>
+    <div class="sect"><h4>Description</h4><div class="desc">${it.desc ? esc(it.desc) : '<span class="muted">No description.</span>'}</div></div>
+    ${it.notes ? `<div class="sect"><h4>Group notes</h4><div class="desc">${esc(it.notes)}</div></div>` : ''}
+    ${historyBlock(it)}
+    <div class="sect toolbar"><button class="danger small" data-dr="purge">Delete permanently</button></div>
+  </div>`;
+}
+
+/* =================== ARCHIVE TAB =================== */
+function filteredArchive() {
+  const f = prefs.arcf, q = (f.q || '').trim().toLowerCase();
+  return DB.archive.filter(it => {
+    const a = it.archived || {};
+    if (f.reason && a.reason !== f.reason) return false;
+    if (f.who && (a.takenBy || '') !== (f.who === '__none' ? '' : f.who)) return false;
+    if (q && ![it.name, it.type, it.tags, a.note, a.fromName, ARC_REASONS[a.reason], a.takenBy ? holderName(a.takenBy) : '', a.by].join(' ').toLowerCase().includes(q)) return false;
+    return true;
+  }).sort((x, y) => (num(x.archived?.at) - num(y.archived?.at)) * (f.dir || -1) || (x.name || '').localeCompare(y.name || ''));
+}
+function renderArchive() {
+  const f = prefs.arcf, list = filteredArchive();
+  const active = f.q || f.reason || f.who;
+  $('#tab-arc').innerHTML = `
+  <div class="panel"><div class="toolbar">
+    <input type="search" id="axQ" placeholder="Search name, note, who…" value="${esc(f.q || '')}">
+    <label>Reason <select id="axFReason"><option value="">All</option>${Object.entries(ARC_REASONS).map(([k, l]) => `<option value="${k}" ${k === f.reason ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+    <label>Who <select id="axFWho"><option value="">Everyone</option><option value="__none" ${f.who === '__none' ? 'selected' : ''}>— nobody —</option>${sortedPlayers().map(p => `<option value="${esc(p.id)}" ${p.id === f.who ? 'selected' : ''}>${esc(p.name || '(unnamed)')}</option>`).join('')}</select></label>
+    <button class="small" id="axDir" title="Toggle order">${(f.dir || -1) < 0 ? 'Newest first ▼' : 'Oldest first ▲'}</button>
+    ${active ? '<button class="ghost small" data-ax="clear">✕ Clear filters</button>' : ''}
+  </div></div>
+  <div class="tablewrap"><table class="itable arct"><thead><tr><th class="nosort">Name</th><th class="nosort right">Qty</th><th class="nosort right">Value</th><th class="nosort">Reason</th><th class="nosort">Who</th><th class="nosort">Came from</th><th class="nosort">Archived</th><th class="nosort">Note</th><th class="nosort"></th></tr></thead>
+  <tbody>${list.length ? list.map(it => { const a = it.archived || {}; return `<tr class="item" data-arc="${esc(it.id)}">
+    <td><span class="iname">${esc(it.name || '(unnamed)')}</span>${it.magical ? '<span class="badge b-magic">✦ magic</span>' : ''}${a.withId ? `<div class="small muted">↳ inside ${esc(getArc(a.withId)?.name || 'a container')}</div>` : ''}${a.locs && a.locs.length && !a.withId ? `<span class="badge" style="color:var(--gold)">▣</span>` : ''}</td>
+    <td class="num">${esc(+num(it.qty).toFixed(2))}</td><td class="num">${fmtCp(itemValue(it))}</td>
+    <td class="small">${esc(ARC_REASONS[a.reason] || '')}</td><td class="small">${esc(a.takenBy ? holderName(a.takenBy) : '')}</td>
+    <td class="small">${esc(a.fromName || '')}</td><td class="small nowrap">${esc(fmtTime(a.at))}${a.by ? `<div class="muted">${esc(a.by)}</div>` : ''}</td>
+    <td class="small"><i>${esc(a.note || '')}</i></td>
+    <td><button class="small" data-ax="back" data-id="${esc(it.id)}" title="Choose where it goes back to">↩ Reactivate…</button></td></tr>`; }).join('')
+    : `<tr><td colspan="9" class="empty">${DB.archive.length ? 'Nothing matches the filters.' : 'Nothing archived yet. Use <b>Archive</b> on an item card when something goes to a character sheet, is sold, lost or used up.'}</td></tr>`}</tbody></table></div>
+  <p class="small muted">${list.length} of ${DB.archive.length} archived · not counted in weights or totals${list.length ? ` · value of shown ${fmtCp(list.reduce((s, i) => s + itemValue(i), 0))}` : ''}</p>`;
+}
+function bindArchive() {
+  const root = $('#tab-arc'); let qT;
+  root.addEventListener('input', e => {
+    if (e.target.id !== 'axQ') return;
+    clearTimeout(qT); qT = setTimeout(() => { prefs.arcf.q = e.target.value; savePrefs(); const pos = e.target.selectionStart; renderArchive(); const q = $('#axQ'); q.focus(); try { q.setSelectionRange(pos, pos); } catch (er) { } }, 200);
+  });
+  root.addEventListener('change', e => {
+    if (e.target.id === 'axFReason') prefs.arcf.reason = e.target.value;
+    else if (e.target.id === 'axFWho') prefs.arcf.who = e.target.value;
+    else return;
+    savePrefs(); renderArchive();
+  });
+  root.addEventListener('click', e => {
+    if (e.target.id === 'axDir') { prefs.arcf.dir = (prefs.arcf.dir || -1) * -1; savePrefs(); renderArchive(); return; }
+    const b = e.target.closest('[data-ax]');
+    if (b && b.dataset.ax === 'clear') { prefs.arcf = { q: '', reason: '', who: '', dir: prefs.arcf.dir || -1 }; savePrefs(); renderArchive(); return; }
+    if (b && b.dataset.ax === 'back') { openItem(b.dataset.id); setTimeout(() => { $('#arcBack')?.scrollIntoView({ block: 'center' }); $('#axDest')?.focus(); }, 230); return; }
+    const tr = e.target.closest('tr[data-arc]'); if (tr) openItem(tr.dataset.arc);
+  });
+  // editing reason / who / note on an archived card
+  $('#drawer').addEventListener('change', e => {
+    if (!drawer.arc) return;
+    const it = getArc(drawer.id); if (!it || !it.archived) return;
+    const el = e.target, a = it.archived;
+    if (el.id === 'axReason') a.reason = el.value;
+    else if (el.id === 'axWho') a.takenBy = el.value;
+    else if (el.id === 'axNote') a.note = el.value.trim();
+    else if (el.id === 'axDest') {
+      const src = a.srcId && getItem(a.srcId), h = $('#axHint');
+      if (h && src) h.textContent = src.holderId === el.value ? `Adds back onto the stack of ${+num(src.qty).toFixed(2)} at ${holderLabel(src.holderId)}.` : `Comes back as its own stack (the other ${+num(src.qty).toFixed(2)} are at ${holderLabel(src.holderId)}).`;
+      return;
+    } else return;
+    it.archived = Object.assign({}, a); touch(it); commit({ keep: [] });
+  });
 }
 
 /* =================== CONTAINERS & LOCATIONS TAB =================== */
@@ -1663,6 +1957,7 @@ function matchByName(d) {
   d.items.forEach(i => i.holderId = m(i.holderId));
   d.purses.forEach(p => { if (map[p.holderId]) { p.holderId = m(p.holderId); p.id = 'cur_' + p.holderId; } });
   d.ledger.forEach(x => { x.fromId = m(x.fromId); x.toId = m(x.toId); });
+  (d.archive || []).forEach(x => { if (x.archived) { x.archived.takenBy = m(x.archived.takenBy); x.archived.fromId = m(x.archived.fromId); } });
   return Object.keys(map).length;
 }
 function importFile(file) {
@@ -1687,7 +1982,7 @@ function importFile(file) {
 }
 
 /* =================== ACTIVITY LOG =================== */
-const LOG_TYPES = { added: 'Added', moved: 'Moved', edited: 'Edited', deleted: 'Deleted', coins: 'Coins', container: 'Container', settings: 'Settings', note: 'Note' };
+const LOG_TYPES = { added: 'Added', moved: 'Moved', edited: 'Edited', archived: 'Archived', returned: 'Returned', deleted: 'Deleted', coins: 'Coins', container: 'Container', settings: 'Settings', note: 'Note' };
 const FIELD_LABEL = { name: 'name', qty: 'qty', weightEach: 'weight', valueCp: 'value', type: 'type', rarity: 'rarity', magical: 'magical',
   attunement: 'requires attunement', attuneNote: 'attunement note', identified: 'identified', equipped: 'equipped', charges: 'charges',
   chargesMax: 'max charges', tags: 'tags', stats: 'stats', desc: 'description', notes: 'notes', source: 'source' };
@@ -1782,7 +2077,7 @@ function renderLog() {
   </div>`;
 }
 function logRow(e) {
-  const it = e.itemId && getItem(e.itemId);
+  const it = e.itemId && (getItem(e.itemId) || getArc(e.itemId));
   const item = e.itemName ? (it ? `<a class="lglink" data-goitem="${esc(e.itemId)}">${esc(e.itemName)}</a>` : esc(e.itemName)) + (e.qty && e.qty !== 1 && e.action !== 'edited' ? ` <span class="muted">× ${esc(+num(e.qty).toFixed(2))}</span>` : '') : '';
   return `<tr data-logid="${esc(e.id)}">
     <td class="nowrap small">${esc(fmtTime(e.ts))}</td><td class="small">${esc(e.gameDate || '')}</td><td class="small">${esc(e.by || '')}</td>
@@ -2067,7 +2362,9 @@ function refreshAfterRemote() {
   if (typingIn && typingIn.id && typingIn.id.startsWith('tab-')) keep.push(typingIn.id.slice(4));
   renderAll(keep);
   if (drawer.mode === 'edit' || drawer.mode === 'view') {
-    if (!getItem(drawer.id)) { closeDrawer(); toast('That item was removed by someone else'); }
+    const nowArc = !getItem(drawer.id) && !!getArc(drawer.id);
+    if (!getItem(drawer.id) && !nowArc) { closeDrawer(); toast('That item was removed by someone else'); }
+    else if (nowArc !== !!drawer.arc) { drawer.arc = nowArc; drawer.mode = 'view'; renderDrawer(); }
     else if (!(typingIn && typingIn.id === 'drawer')) renderDrawer();
   }
 }
@@ -2088,7 +2385,7 @@ function renderHeader() {
 function showTab(t) {
   prefs.tab = t; savePrefs(); sel.clear();
   $$('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
-  ['inv', 'loc', 'cur', 'log', 'set'].forEach(x => $('#tab-' + x).classList.toggle('hidden', x !== t));
+  ['inv', 'loc', 'cur', 'arc', 'log', 'set'].forEach(x => $('#tab-' + x).classList.toggle('hidden', x !== t));
   if (t === 'loc') openLoc = openLoc || '';
   renderTab(t);
 }
@@ -2096,6 +2393,7 @@ function renderTab(t) {
   if (t === 'inv') renderInventory();
   else if (t === 'loc') renderLocations();
   else if (t === 'cur') renderCurrency();
+  else if (t === 'arc') renderArchive();
   else if (t === 'set') renderSettings();
   else if (t === 'log') renderLog();
 }
@@ -2115,9 +2413,12 @@ function readUrlParams() {
 }
 
 async function init() {
+  $('#appVer').textContent = 'v' + APP_BUILD; $('#appVer').title = `Group Inventory v${APP_BUILD} (${APP_BUILD_DATE})`;
+  console.info(`Group Inventory v${APP_BUILD} (${APP_BUILD_DATE})`);
   loadPrefs(); applyTheme();
   if (!SORTERS[prefs.sort.key]) prefs.sort.key = 'name';
   if (!['', 'req', 'none'].includes(prefs.filters.attune)) prefs.filters.attune = '';
+  if (!prefs.arcf || typeof prefs.arcf !== 'object') prefs.arcf = { q: '', reason: '', who: '', dir: -1 };
   const urlCode = readUrlParams();
   if (!Array.isArray(prefs.fb.list)) prefs.fb.list = [];
   if (!prefs.fb.me || typeof prefs.fb.me !== 'object') prefs.fb.me = {};
@@ -2135,7 +2436,7 @@ async function init() {
   }
   DB = normalizeDB(DB);
   if (syncLinked() | ensureVocab()) saveLocal();
-  bindInventory(); bindDrawer(); bindLocations(); bindCurrency(); bindSettings(); bindLog();
+  bindInventory(); bindDrawer(); bindLocations(); bindCurrency(); bindSettings(); bindLog(); bindArchive();
   $('#tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { if (b.dataset.tab === 'loc') openLoc = ''; showTab(b.dataset.tab); } });
   $('#meSel').addEventListener('change', e => { prefs.me = e.target.value; savePrefs(); if (prefs.tab === 'set') renderSettings(); });
   $('#themeBtn').addEventListener('click', () => { prefs.theme = prefs.theme === 'dark' ? 'light' : 'dark'; savePrefs(); applyTheme(); if (prefs.tab === 'set') renderSettings(); });

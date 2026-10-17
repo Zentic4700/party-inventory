@@ -1,0 +1,12 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "campaigns": {
+      "$code": {
+        ".read": "auth != null",
+        ".write": "auth != null && $code.length >= 8"
+      }
+    }
+  }
+}
