@@ -47,6 +47,11 @@ header{position:sticky;top:0;z-index:20;background:var(--bg2)}
 :root{--gutter:64px;--drawer-w:min(680px,100vw)}
 @media (max-width:760px){:root{--gutter:10px}}
 .hrow{display:flex;align-items:center;gap:12px;padding:8px var(--gutter);flex-wrap:wrap}
+body.gated main>section:not(#gate){display:none!important} body.gated nav.tabs{visibility:hidden} body.gated label:has(#meSel){visibility:hidden}
+.gatep{max-width:560px;margin:30px auto;padding:18px 22px} .gatep p{margin:8px 0} .gatep .toolbar{margin:12px 0} .gatefoot{margin-top:16px!important;border-top:1px solid var(--line);padding-top:8px}
+#syncBtn{position:relative} #syncBtn.req::after{content:attr(data-n);position:absolute;top:-4px;right:-4px;min-width:15px;height:15px;border-radius:8px;background:var(--accent);color:#fff;font:700 10px/15px sans-serif;text-align:center;padding:0 3px}
+.reqn{display:inline-block;min-width:18px;border-radius:9px;background:var(--accent);color:#fff;font:700 11px/18px sans-serif;text-align:center;padding:0 5px;vertical-align:1px}
+.acct{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .ver{font-size:11px;color:var(--muted);white-space:nowrap;align-self:flex-start;margin-top:2px;opacity:.8}
 .brand h1{font-size:20px;color:var(--gold)} .brand .camp{font-size:13px;color:var(--muted)}
 .campsel{font:inherit;font-size:13px;color:var(--muted);background:transparent;border:1px solid transparent;border-radius:4px;padding:0 2px;margin-left:-3px;cursor:pointer;max-width:260px}
@@ -260,6 +265,7 @@ tr.item:hover .qb,.qb:focus{opacity:1}
 </header>
 
 <main>
+  <section id="gate"></section>
   <section id="tab-inv"></section>
   <section id="tab-loc" class="hidden"></section>
   <section id="tab-cur" class="hidden"></section>
@@ -280,7 +286,7 @@ tr.item:hover .qb,.qb:focus{opacity:1}
    Realtime Database (field-level writes, coins/qty as increments).
    ========================================================= */
 const APP_VERSION = 1;          // data format version (not the app build)
-const APP_BUILD = '2.2.0';     // shown top right — bump on every change
+const APP_BUILD = '2.3.0';     // shown top right — bump on every change
 const APP_BUILD_DATE = '2026-10-17';
 const LS_DATA = 'groupInvFb_data_v1';
 const LS_PREFS = 'groupInvFb_prefs_v1';
@@ -373,7 +379,7 @@ const canon = db => JSON.stringify(mergeDB(db, { meta: { updatedAt: -1 } }));
 let DB = seedDB();
 let prefs = {
   theme: 'light', me: '', tab: 'inv',
-  fb: { campaign: '', list: [], me: {} },
+  fb: { campaign: '', list: [], me: {}, asked: {} },
   filters: { q: '', holder: '', nested: true, type: '', rarity: '', magic: '', attune: '', tag: '' },
   sort: { key: 'name', dir: 1 }, group: 'none',
   logf: { q: '', types: [], by: '', from: '', to: '', dir: -1 },
@@ -1752,23 +1758,26 @@ function renderSettings() {
   ` : ''}${st === 'sync' ? `
 
   <div class="panel"><h2>☁ Live sync (Firebase)</h2>
-    <p class="help">Everyone who opens a campaign's share link sees the same inventory, live. Changes are saved field by field the moment you make them,
-    so several players can edit at the same time. Coins and quantities are saved as <i>changes</i> (+5 gp, −1 arrow), so two players paying at once both count.
-    The campaign code in the link is the key, so only share it with the group.</p>
+    <p class="help">Everyone with access sees the same inventory, live. Players sign in with Google; the first time, the DM approves them here.
+    Changes are saved field by field the moment you make them, and coins and quantities are saved as <i>changes</i> (+5 gp, −1 arrow), so two players editing at once both count.</p>
+    <h3 class="subh">Account</h3>
+    <div class="acct">${fbUser ? `<span>Signed in as <b>${esc(fbUser.displayName || '')}</b> <code>${esc(fbUser.email || '')}</code>${fbIsCreator() ? ' <span class="small muted">· DM account</span>' : ''}</span><button class="small" data-set="fbSignOut">Sign out</button>`
+      : `<span class="muted">Not signed in.</span><button class="small gold" data-set="fbSignIn">Sign in with Google</button>${location.protocol === 'file:' ? '<span class="small" style="color:var(--bad)">Sign-in only works from the web address (GitHub Pages), not from a file.</span>' : ''}`}</div>
     <h3 class="subh">My campaigns</h3>
     ${prefs.fb.list.length ? `<div class="camplist">${prefs.fb.list.map(c => `<div class="camprow ${c.code === prefs.fb.campaign ? 'on' : ''}">
-      <span class="nm"><b>${esc(c.name || c.code)}</b> <code>${esc(c.code)}</code>${c.code === prefs.fb.campaign ? ' <span class="small muted">· open</span>' : ''}</span>
-      ${c.code === prefs.fb.campaign ? `<button class="small gold" data-set="fbShare" title="Copies a link with the campaign code for your players">Copy share link</button>`
+      <span class="nm"><b>${esc(c.name || c.code)}</b> <code>${esc(c.code)}</code>${c.code === prefs.fb.campaign ? ` <span class="small muted">· open${fbRole === 'owner' ? ' · you are the DM' : ''}</span>` : ''}</span>
+      ${c.code === prefs.fb.campaign ? (fbRef ? `<button class="small gold" data-set="fbShare" title="Copies a link with the campaign code for your players">Copy share link</button>` : '')
         : `<button class="small" data-set="fbOpen" data-code="${esc(c.code)}">Open</button>`}
-      <button class="small" data-set="fbForget" data-code="${esc(c.code)}" title="Remove from this browser's list. The campaign itself is not deleted — you can join again with the code.">Remove</button>
-    </div>`).join('')}</div>` : '<p class="muted small">None yet — join one with a code, or create a new one.</p>'}
+      <button class="small" data-set="fbForget" data-code="${esc(c.code)}" title="Remove from your list. The campaign itself is not deleted.">Remove</button>
+    </div>`).join('')}</div>` : '<p class="muted small">None yet — open a share link from your DM, or join with a code.</p>'}
+    ${membersSection()}
     <h3 class="subh">Join a campaign</h3>
     <div class="toolbar"><input id="fbCode" placeholder="campaign code, e.g. party-x7k2q9m4" autocomplete="off" spellcheck="false" style="flex:1;min-width:200px">
       <button data-set="fbJoin">Join</button></div>
-    <h3 class="subh">Create a new campaign</h3>
+    ${fbIsCreator() ? `<h3 class="subh">Create a new campaign</h3>
     <div class="toolbar"><input id="fbName" placeholder="name, e.g. Curse of Strahd" autocomplete="off" style="flex:1;min-width:200px">
       <label class="small"><input type="checkbox" id="fbCopy" ${prefs.fb.campaign ? '' : 'checked'}> start with a copy of the data shown now</label>
-      <button data-set="fbCreate">Create</button></div>
+      <button data-set="fbCreate">Create</button></div>` : ''}
     <div class="small muted" id="ghMsg" style="margin-top:6px"></div>
   </div>
 
@@ -1881,7 +1890,7 @@ function bindSettings() {
         const code = fbCleanCode($('#fbCode').value);
         if (!code) { $('#ghMsg').textContent = 'Enter a campaign code (at least 8 letters/digits).'; return; }
         $('#ghMsg').textContent = 'Connecting…';
-        fbConnect(code).then(() => toast('Joined ' + (fbEntry(code)?.name || code)), e => { $('#ghMsg') && ($('#ghMsg').textContent = e.message); });
+        fbConnect(code).then(() => { if (fbRef) toast('Opened ' + (fbEntry(code)?.name || code)); }, e => { $('#ghMsg') && ($('#ghMsg').textContent = e.message); });
         break;
       }
       case 'fbOpen': fbConnect(b.dataset.code).catch(e => { $('#ghMsg') && ($('#ghMsg').textContent = e.message); }); break;
@@ -1903,6 +1912,11 @@ function bindSettings() {
         (navigator.clipboard ? navigator.clipboard.writeText(s) : Promise.reject()).then(() => toast('Share link copied'), () => { $('#ghMsg').textContent = s; });
         break;
       }
+      case 'fbSignIn': fbSignIn().catch(e => { $('#ghMsg') && ($('#ghMsg').textContent = e.message); }); break;
+      case 'fbSignOut': fbSignOut().then(() => renderSettings(), fbShowErr); break;
+      case 'fbApprove': b.disabled = true; fbApprove(b.dataset.uid).then(() => toast('Access given'), fbShowErr); break;
+      case 'fbDecline': if (!armed(b, '', 'Decline?')) return; fbDecline(b.dataset.uid).catch(fbShowErr); break;
+      case 'fbRemove': if (!armed(b, '', 'Remove access?')) return; fbRemoveMember(b.dataset.uid).then(() => toast('Access removed'), fbShowErr); break;
       case 'fbForget': {
         const code = b.dataset.code;
         if (!armed(b, '', 'Remove?')) return;
@@ -2204,8 +2218,17 @@ async function fbLoad() {
   const base = `https://www.gstatic.com/firebasejs/${FB_VER}/`;
   const [appM, authM, dbM] = await Promise.all(['firebase-app.js', 'firebase-auth.js', 'firebase-database.js'].map(f => import(base + f)));
   const app = appM.initializeApp(FB_CONFIG);
-  await authM.signInAnonymously(authM.getAuth(app));
-  FB = Object.assign({ db: dbM.getDatabase(app) }, dbM);
+  const auth = authM.getAuth(app);
+  FB = Object.assign({ db: dbM.getDatabase(app), auth, A: authM }, dbM);
+  await new Promise(res => {
+    let first = true;
+    authM.onAuthStateChanged(auth, u => {
+      if (u && u.isAnonymous) { authM.signOut(auth); return; }   // left over from the old anonymous version
+      const changed = (u ? u.uid : '') !== (fbUser ? fbUser.uid : '');
+      fbUser = u || null;
+      if (first) { first = false; res(); } else if (changed) fbAuthChanged();
+    });
+  });
   return FB;
 }
 
@@ -2261,6 +2284,10 @@ function fbPush() {
   BASE = cur;
   if (!Object.keys(up).length) { dirty = false; idleStatus(); return false; }
   fbPending++; idleStatus();
+  if (up['meta/name'] !== undefined && fbRole === 'owner' && DB.meta.name) {
+    FB.set(fbR(`campaigns/${prefs.fb.campaign}/name`), DB.meta.name).catch(() => { });
+    FB.set(fbR(`users/${fbUser.uid}/campaigns/${prefs.fb.campaign}`), DB.meta.name).catch(() => { });
+  }
   FB.update(fbRef, up).then(() => { fbLastErr = ''; }, e => { console.error(e); fbLastErr = e.code === 'PERMISSION_DENIED' ? 'Not allowed — check database rules' : e.message; })
     .finally(() => { fbPending--; if (!fbPending) dirty = false; idleStatus(); });
   return true;
@@ -2271,7 +2298,7 @@ function fbOnValue(snap) { fbLatest = snap.val(); clearTimeout(fbApplyT); fbAppl
 function fbApply() {
   if (!fbRef) return;
   if (fbPush()) { fbApplyT = setTimeout(fbApply, 30); return; }   // never drop a local edit: send it first, then take the server state
-  if (fbLatest == null) { setStatus('err', 'Campaign was deleted on the server'); return; }
+  if (fbLatest == null) { setStatus('err', 'No data in this campaign'); return; }
   const before = canon(DB);
   DB = fromRemote(fbLatest); BASE = clone(DB);
   if (syncLinked() | ensureVocab()) fbPush();
@@ -2282,62 +2309,276 @@ function fbApply() {
   idleStatus();
 }
 
+/* ---------- accounts, membership & approval ----------
+   campaigns/<code>/ owner (uid) · name · data/… (the inventory) · members/<uid> · requests/<uid>
+   users/<uid>/campaigns/<code> = name   (so a player's list follows their Google account)
+   The database rules enforce all of it; the app just shows the right screen. */
+const OWNER_EMAIL = 'tinman4700@gmail.com';   // the only Google account that may create campaigns (also in the rules)
+let fbUser = null, fbRole = '', fbWatch = [], fbReqs = {}, fbMembers = {}, fbGate = null, fbPendingCode = '';
+
+const fbIsCreator = () => !!(fbUser && fbUser.emailVerified && String(fbUser.email || '').toLowerCase() === OWNER_EMAIL);
+const fbMe = extra => Object.assign({ name: (fbUser && fbUser.displayName) || '', email: (fbUser && fbUser.email) || '', at: now() }, extra || {});
+const fbR = path => FB.ref(FB.db, path);
+const isDenied = e => e && (e.code === 'PERMISSION_DENIED' || /permission/i.test(e.message || ''));
+
+function fbAuthMsg(e) {
+  switch (e && e.code) {
+    case 'auth/operation-not-allowed': return 'Turn on Google sign-in in Firebase → Authentication → Sign-in method';
+    case 'auth/unauthorized-domain': return `Add ${location.hostname} in Firebase → Authentication → Settings → Authorized domains`;
+    case 'auth/network-request-failed': return 'No connection to Google — check your internet';
+    default: return (e && (e.code || e.message)) || 'Sign-in failed';
+  }
+}
+async function fbSignIn() {
+  if (location.protocol === 'file:') throw new Error('Google sign-in only works when the page is opened from its web address (GitHub Pages), not as a file');
+  await fbLoad();
+  const p = new FB.A.GoogleAuthProvider(); p.setCustomParameters({ prompt: 'select_account' });
+  try { await FB.A.signInWithPopup(FB.auth, p); }
+  catch (e) {
+    if (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment') return FB.A.signInWithRedirect(FB.auth, p);
+    if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') return;
+    throw new Error(fbAuthMsg(e));
+  }
+}
+async function fbSignOut() { fbDisconnect(); if (FB) await FB.A.signOut(FB.auth); }
+
+/* signed in / out after start-up */
+function fbAuthChanged() {
+  renderHeader(); if (prefs.tab === 'set') renderSettings();
+  if (fbUser) {
+    fbSyncMyList();
+    const code = fbPendingCode || prefs.fb.campaign;
+    if (code) fbConnect(code).catch(fbShowErr);
+  } else {
+    fbDisconnect();
+    if (prefs.fb.campaign) fbSetGate({ state: 'signin', code: prefs.fb.campaign });
+  }
+}
+function fbShowErr(e) { console.error(e); setStatus('err', String(e.message || e).slice(0, 60)); toast(e.message || String(e)); }
+
+/* campaigns this account is a member of (approved on another device, etc.) */
+async function fbSyncMyList() {
+  if (!fbUser) return;
+  try {
+    const v = (await FB.get(fbR(`users/${fbUser.uid}/campaigns`))).val() || {};
+    Object.entries(v).forEach(([code, name]) => fbRemember(code, typeof name === 'string' ? name : ''));
+    savePrefs(); renderHeader(); if (prefs.tab === 'set') renderSettings();
+  } catch (e) { console.warn(e); }
+}
+
+/* ---------- the screen shown instead of the inventory when you can't open a campaign ---------- */
+function fbSetGate(g) {
+  fbGate = g; document.body.classList.toggle('gated', !!g); renderGate(); idleStatus();
+}
+function renderGate() {
+  const el = $('#gate'); if (!el) return;
+  const g = fbGate; if (!g) { el.innerHTML = ''; return; }
+  const nm = esc(g.name || fbEntry(g.code)?.name || g.code);
+  const acct = fbUser ? `<p class="small muted">Signed in as ${esc(fbUser.email || fbUser.displayName || '')} · <a class="arclink" data-gate="signout">sign out</a></p>` : '';
+  let body = '';
+  switch (g.state) {
+    case 'signin': body = `<p>This campaign is private. Sign in with your Google account — the first time, the DM gets a request to let you in.</p>
+      ${location.protocol === 'file:' ? '<p class="small" style="color:var(--bad)">Google sign-in only works when the page is opened from its web address (GitHub Pages), not as a file on your computer.</p>' : ''}
+      <div class="toolbar"><button class="gold" data-gate="signin">Sign in with Google</button></div>`; break;
+    case 'waiting': body = `<p>Your request has been sent to the DM. This page opens by itself as soon as you're approved — you can leave it open.</p>
+      <div class="toolbar"><button data-gate="cancel">Withdraw request</button></div>`; break;
+    case 'declined': body = `<p>Your request was declined, or the DM cleared it.</p><div class="toolbar"><button class="gold" data-gate="ask">Ask again</button></div>`; break;
+    case 'removed': body = `<p>You no longer have access to this campaign.</p><div class="toolbar"><button data-gate="ask">Ask for access again</button></div>`; break;
+    case 'legacy': body = `<p>This campaign was made before sign-in existed, so it can't be opened any more. This browser still has a copy of its data (${DB.items.length} items).</p>
+      <div class="toolbar"><button class="gold" data-gate="migrate">Create a new private campaign from this copy</button></div>
+      <p class="small muted">Afterwards, send the new share link to your players. Delete the old one in the Firebase console when you're happy.</p>`; break;
+    case 'notfound': body = `<p>There's no campaign with the code <code>${esc(g.code)}</code>. Check the link with your DM.</p>`; break;
+    default: body = `<p style="color:var(--bad)">${esc(g.msg || 'Something went wrong.')}</p><div class="toolbar"><button data-gate="retry">Try again</button></div>`;
+  }
+  el.innerHTML = `<div class="panel gatep"><h2>⚜ ${nm}</h2>${body}${acct}
+    <p class="small muted gatefoot">${prefs.fb.list.length > 1 ? 'Switch campaign with the menu at the top left · ' : ''}<a class="arclink" data-gate="local">use this browser without a campaign</a>${['waiting', 'declined', 'removed', 'notfound', 'error'].includes(g.state) ? ` · <a class="arclink" data-gate="forget">remove it from my list</a>` : ''}</p></div>`;
+}
+function bindGate() {
+  $('#gate').addEventListener('click', e => {
+    const b = e.target.closest('[data-gate]'); if (!b || !fbGate) return;
+    e.preventDefault();
+    const code = fbGate.code;
+    switch (b.dataset.gate) {
+      case 'signin': fbPendingCode = code; fbSignIn().catch(fbShowErr); break;
+      case 'signout': fbSignOut().catch(fbShowErr); break;
+      case 'ask': fbAsk(code).catch(fbShowErr); break;
+      case 'retry': fbConnect(code).catch(fbShowErr); break;
+      case 'cancel': FB.set(fbR(`campaigns/${code}/requests/${fbUser.uid}`), null).catch(() => { }).then(() => { delete prefs.fb.asked[code]; fbForget(code); }); break;
+      case 'forget': fbForget(code); break;
+      case 'local': fbGoLocal(); break;
+      case 'migrate': {
+        const data = normalizeDB(clone(DB));
+        fbConnect(fbNewCode(data.meta.name), { create: true, data }).then(() => {
+          prefs.fb.list = prefs.fb.list.filter(c => c.code !== code); dropLocal(code); savePrefs(); renderHeader();
+          toast('New private campaign created — copy its share link in Settings → Live sync');
+        }, fbShowErr);
+        break;
+      }
+    }
+  });
+}
+/* leave every campaign and use the local-only copy */
+function fbGoLocal() {
+  if (prefs.fb.campaign && !fbGate) saveLocal();
+  fbDisconnect(); if (prefs.fb.campaign) prefs.fb.me[prefs.fb.campaign] = prefs.me;
+  prefs.fb.campaign = ''; prefs.me = ''; savePrefs();
+  DB = loadLocal('') || seedDB(); fbSetGate(null); renderAll(); idleStatus();
+}
+
+/* ask the DM for access (writes requests/<uid>) */
+async function fbAsk(code) {
+  await FB.set(fbR(`campaigns/${code}/requests/${fbUser.uid}`), fbMe());
+  prefs.fb.asked[code] = true; savePrefs();
+  fbSetGate({ state: 'waiting', code });
+  fbWatchApproval(code);
+}
+/* while waiting: open as soon as we're a member; notice when the request is declined */
+function fbWatchApproval(code) {
+  fbUnwatch();
+  const uid = fbUser.uid;
+  fbWatch.push(FB.onValue(fbR(`campaigns/${code}/members/${uid}`), s => { if (s.exists() && fbGate && fbGate.code === code) fbConnect(code).catch(fbShowErr); }, () => { }));
+  fbWatch.push(FB.onValue(fbR(`campaigns/${code}/requests/${uid}`), async s => {
+    if (s.exists() || !fbGate || fbGate.code !== code || fbGate.state !== 'waiting') return;
+    const m = await FB.get(fbR(`campaigns/${code}/members/${uid}`)).catch(() => null);
+    if (m && m.exists()) fbConnect(code).catch(fbShowErr); else fbSetGate({ state: 'declined', code });
+  }, () => { }));
+}
+function fbUnwatch() { fbWatch.forEach(u => { try { u(); } catch (e) { } }); fbWatch = []; }
+
+/* ---------- DM: approve / decline / remove ---------- */
+function fbApprove(uid) {
+  const code = prefs.fb.campaign, r = fbReqs[uid] || {};
+  return FB.update(fbR(''), {
+    [`campaigns/${code}/members/${uid}`]: { name: r.name || '', email: r.email || '', at: now(), by: (fbUser && fbUser.email) || '' },
+    [`campaigns/${code}/requests/${uid}`]: null,
+    [`users/${uid}/campaigns/${code}`]: fbEntry(code)?.name || DB.meta.name || code
+  }).then(() => { logEvent('settings', { text: `${r.name || r.email || 'a player'} was given access` }); commit(); });
+}
+function fbDecline(uid) { return FB.set(fbR(`campaigns/${prefs.fb.campaign}/requests/${uid}`), null); }
+function fbRemoveMember(uid) {
+  const code = prefs.fb.campaign, m = fbMembers[uid] || {};
+  return FB.update(fbR(''), { [`campaigns/${code}/members/${uid}`]: null, [`users/${uid}/campaigns/${code}`]: null })
+    .then(() => { logEvent('settings', { text: `${m.name || m.email || 'a player'} no longer has access` }); commit(); });
+}
+function membersSection() {
+  if (!fbRef) return '';
+  const me = fbUser ? fbUser.uid : '';
+  const reqs = Object.entries(fbReqs), mems = Object.entries(fbMembers).sort((a, b) => (a[0] === me ? -1 : b[0] === me ? 1 : String(a[1].name).localeCompare(String(b[1].name))));
+  if (fbRole !== 'owner') return `<h3 class="subh">Players with access</h3><p class="small muted">${mems.length ? mems.map(([, m]) => esc(m.name || m.email)).join(' · ') : 'Only the DM can see the member list.'}</p>`;
+  return `<h3 class="subh">Access requests${reqs.length ? ` <span class="reqn">${reqs.length}</span>` : ''}</h3>
+    ${reqs.length ? `<div class="camplist">${reqs.map(([uid, r]) => `<div class="camprow"><span class="nm"><b>${esc(r.name || '(no name)')}</b> <code>${esc(r.email || '')}</code> <span class="small muted">· ${esc(fmtTime(r.at))}</span></span>
+      <button class="small gold" data-set="fbApprove" data-uid="${esc(uid)}">Approve</button><button class="small" data-set="fbDecline" data-uid="${esc(uid)}">Decline</button></div>`).join('')}</div>`
+      : '<p class="small muted">No one is waiting. New players open the share link, sign in with Google, and show up here.</p>'}
+    <h3 class="subh">Players with access · ${mems.length}</h3>
+    <div class="camplist">${mems.map(([uid, m]) => `<div class="camprow"><span class="nm"><b>${esc(m.name || '(no name)')}</b> <code>${esc(m.email || '')}</code>${uid === me ? ' <span class="small muted">· you (DM)</span>' : ''}</span>
+      ${uid === me ? '' : `<button class="small" data-set="fbRemove" data-uid="${esc(uid)}" title="They can ask again, but you have to approve them">Remove access</button>`}</div>`).join('')}</div>`;
+}
+
 const fbEntry = code => prefs.fb.list.find(c => c.code === code);
 function fbRemember(code, name) {
   const e = fbEntry(code);
   if (e) { if (name) e.name = name; } else prefs.fb.list.push({ code, name: name || '' });
 }
-/* connect to (or switch to) a campaign. opts.create + opts.data: upload data as a new campaign */
-async function fbConnect(code, opts = {}) {
-  setStatus('busy', 'Connecting…');
-  try { await fbLoad(); }
-  catch (e) { idleStatus(); throw new Error(/admin-restricted|operation-not-allowed/.test(e.code || '') ? 'Turn on Anonymous sign-in in Firebase → Authentication' : 'Could not reach Firebase: ' + (e.code || e.message)); }
-  const ref = FB.ref(FB.db, 'campaigns/' + code);
-  let remoteName = '';
-  try {
-    const s = await FB.get(ref);
-    if (opts.create) {
-      if (s.exists()) throw new Error('That campaign code is already in use');
-      await FB.set(ref, toRemote(opts.data || DB));
-    } else {
-      if (!s.exists()) throw new Error('No campaign with that code');
-      remoteName = s.child('meta/name').val() || '';
-    }
-  } catch (e) { idleStatus(); throw e.code === 'PERMISSION_DENIED' ? new Error('Not allowed — check the database rules') : e; }
-  const switching = code !== prefs.fb.campaign || !fbRef;
-  if (code !== prefs.fb.campaign) {
-    saveLocal();                                        // park the current campaign's local copy
+/* show this campaign's local copy right away (switching campaigns parks the current one) */
+function fbSwitchLocal(code, data) {
+  const switching = code !== prefs.fb.campaign;
+  if (switching) {
+    if (!fbGate) saveLocal();                         // park the current campaign's local copy
     fbDisconnect();
     if (prefs.fb.campaign) prefs.fb.me[prefs.fb.campaign] = prefs.me;
     prefs.fb.campaign = code;
     prefs.me = prefs.fb.me[code] || '';
-    DB = loadLocal(code) || normalizeDB(opts.data ? clone(opts.data) : seedDB());
+    DB = loadLocal(code) || normalizeDB(data ? clone(data) : seedDB());
     sel.clear(); openLoc = ''; if (drawer.mode) closeDrawer();
   } else fbDisconnect();
-  fbRemember(code, opts.data?.meta?.name || remoteName);
+  fbRemember(code, data?.meta?.name || '');
   savePrefs();
-  if (switching) { renderAll(); }
-  fbRef = ref; BASE = null;
-  fbUnsub = FB.onValue(ref, fbOnValue, e => { setStatus('err', 'Live sync stopped: ' + (e.code || e.message)); });
-  fbConnUnsub = FB.onValue(FB.ref(FB.db, '.info/connected'), s => { fbOnline = !!s.val(); idleStatus(); });
+  if (switching) renderAll();
+}
+/* connect to (or switch to) a campaign. opts.create + opts.data: upload data as a new campaign (DM account only) */
+async function fbConnect(code, opts = {}) {
+  setStatus('busy', 'Connecting…');
+  try { await fbLoad(); }
+  catch (e) { idleStatus(); throw new Error('Could not reach Firebase: ' + (e.code || e.message)); }
+  if (opts.create) {                                   // check before touching the local view
+    if (!fbUser) throw new Error('Sign in with Google first');
+    if (!fbIsCreator()) throw new Error('Only the DM account can create campaigns');
+    const ex = await FB.get(fbR(`campaigns/${code}/owner`));
+    if (ex.exists()) throw new Error('That campaign code is already in use');
+    const name = (opts.data && opts.data.meta && opts.data.meta.name) || 'Party Inventory', uid = fbUser.uid;
+    try {
+      await FB.update(fbR(''), {
+        [`campaigns/${code}/owner`]: uid, [`campaigns/${code}/name`]: name,
+        [`campaigns/${code}/data`]: toRemote(opts.data || DB),
+        [`campaigns/${code}/members/${uid}`]: fbMe({ role: 'owner' }),
+        [`users/${uid}/campaigns/${code}`]: name
+      });
+    } catch (e) { idleStatus(); throw isDenied(e) ? new Error('Not allowed — check the database rules (and that you signed in with ' + OWNER_EMAIL + ')') : e; }
+  }
+  fbSwitchLocal(code, opts.data);
+  if (!fbUser) { fbPendingCode = code; fbSetGate({ state: 'signin', code }); return; }
+  fbPendingCode = '';
+  const uid = fbUser.uid;
+  let owner = null, name = '', member = null;
+  try {
+    const [o, n, m] = await Promise.all([FB.get(fbR(`campaigns/${code}/owner`)), FB.get(fbR(`campaigns/${code}/name`)), FB.get(fbR(`campaigns/${code}/members/${uid}`))]);
+    owner = o.val(); name = n.val() || ''; member = m.val();
+  } catch (e) {
+    if (!isDenied(e)) { fbSetGate({ state: 'error', code, msg: 'Could not open the campaign: ' + (e.code || e.message) }); return; }
+  }
+  if (code !== prefs.fb.campaign) return;              // switched elsewhere meanwhile
+  if (!owner) {                                        // wrong code, or a campaign from before sign-in
+    fbSetGate({ state: fbIsCreator() && (DB.items.length || DB.archive.length) ? 'legacy' : 'notfound', code });
+    return;
+  }
+  fbRemember(code, name); savePrefs(); renderHeader();
+  if (!member) {
+    let req = null;
+    try { req = (await FB.get(fbR(`campaigns/${code}/requests/${uid}`))).val(); } catch (e) { }
+    if (req) { fbSetGate({ state: 'waiting', code, name }); fbWatchApproval(code); }
+    else if (prefs.fb.asked[code]) { fbSetGate({ state: 'declined', code, name }); fbWatchApproval(code); }
+    else await fbAsk(code);
+    return;
+  }
+  // a member: go live
+  delete prefs.fb.asked[code]; savePrefs();
+  fbRole = owner === uid ? 'owner' : 'member';
+  fbSetGate(null);
+  fbRef = fbR(`campaigns/${code}/data`); BASE = null;
+  fbUnsub = FB.onValue(fbRef, fbOnValue, e => { setStatus('err', 'Live sync stopped: ' + (e.code || e.message)); });
+  fbConnUnsub = FB.onValue(fbR('.info/connected'), s => { fbOnline = !!s.val(); idleStatus(); });
+  fbWatch.push(FB.onValue(fbR(`campaigns/${code}/members/${uid}`), s => {
+    if (!s.exists() && fbRef) { fbDisconnect(); prefs.fb.asked[code] = true; savePrefs(); fbSetGate({ state: 'removed', code, name }); }
+  }, () => { }));
+  if (fbRole === 'owner') {
+    const upd = () => { renderHeader(); if (prefs.tab === 'set' && prefs.setTab === 'sync') renderSettings(); };
+    fbWatch.push(FB.onValue(fbR(`campaigns/${code}/requests`), s => { fbReqs = s.val() || {}; upd(); }, () => { }));
+    fbWatch.push(FB.onValue(fbR(`campaigns/${code}/members`), s => { fbMembers = s.val() || {}; upd(); }, () => { }));
+  } else {
+    FB.get(fbR(`campaigns/${code}/members`)).then(s => { fbMembers = s.val() || {}; }, () => { fbMembers = {}; });
+  }
+  FB.set(fbR(`users/${uid}/campaigns/${code}`), name || code).catch(() => { });   // keep my list in my account
+  renderHeader(); if (prefs.tab === 'set') renderSettings();
   idleStatus();
 }
 /* remove a campaign from this browser's list (the campaign itself is untouched) */
 function fbForget(code) {
   prefs.fb.list = prefs.fb.list.filter(c => c.code !== code);
   delete prefs.fb.me[code];
+  if (fbUser && FB && !(fbRole === 'owner' && code === prefs.fb.campaign)) FB.set(fbR(`users/${fbUser.uid}/campaigns/${code}`), null).catch(() => { });
   if (code === prefs.fb.campaign) {
-    fbDisconnect(); dropLocal(code);
+    fbDisconnect(); dropLocal(code); fbSetGate(null);
     const next = prefs.fb.list[0];
     prefs.fb.campaign = ''; prefs.me = '';
     savePrefs();
-    if (next) { fbConnect(next.code).catch(e => setStatus('err', e.message.slice(0, 60))); return; }
+    if (next) { fbConnect(next.code).catch(fbShowErr); return; }
     DB = loadLocal('') || seedDB(); renderAll(); idleStatus();
   } else { dropLocal(code); savePrefs(); renderAll(); }
 }
 function fbDisconnect() {
   if (fbUnsub) fbUnsub(); if (fbConnUnsub) fbConnUnsub();
-  fbUnsub = fbConnUnsub = null; fbRef = null; BASE = null; fbOnline = false; clearTimeout(fbApplyT);
+  fbUnwatch();
+  fbUnsub = fbConnUnsub = null; fbRef = null; BASE = null; fbOnline = false; fbRole = ''; fbReqs = {}; fbMembers = {}; clearTimeout(fbApplyT);
 }
 
 function setStatus(state, text) {
@@ -2346,12 +2587,14 @@ function setStatus(state, text) {
 }
 function idleStatus() {
   if (!prefs.fb.campaign) return setStatus('', 'Local only');
+  if (fbGate) return setStatus(fbGate.state === 'waiting' ? 'busy' : 'err',
+    { signin: 'Sign in needed', waiting: 'Waiting for approval', declined: 'No access', removed: 'No access', legacy: 'Old campaign', notfound: 'Campaign not found' }[fbGate.state] || 'Error');
   if (!fbRef) return setStatus('err', 'Not connected — click ☁');
   if (fbLastErr) return setStatus('err', fbLastErr.slice(0, 60));
   if (!BASE) return setStatus('busy', 'Loading…');
   if (!fbOnline) return setStatus('busy', 'Offline · changes kept');
   if (fbPending) return setStatus('busy', 'Saving…');
-  setStatus('ok', 'Live · ' + prefs.fb.campaign);
+  setStatus('ok', 'Live' + (fbRole === 'owner' ? ' · DM' : ''));
 }
 
 /* re-render, but don't clobber what the user is typing */
@@ -2372,6 +2615,9 @@ function refreshAfterRemote() {
 /* =================== HEADER / TABS / INIT =================== */
 function applyTheme() { document.documentElement.setAttribute('data-theme', prefs.theme === 'dark' ? 'dark' : 'light'); }
 function renderHeader() {
+  const nReq = fbRole === 'owner' ? Object.keys(fbReqs).length : 0, sb = $('#syncBtn');
+  sb.classList.toggle('req', nReq > 0); sb.dataset.n = nReq || '';
+  sb.title = nReq ? `${nReq} player${nReq === 1 ? '' : 's'} waiting for access — click to see` : 'Live sync status';
   const list = prefs.fb.list, multi = list.length > 1, cs = $('#campSel');
   $('#campName').textContent = DB.meta.name || '';
   $('#campName').classList.toggle('hidden', multi);
@@ -2422,6 +2668,7 @@ async function init() {
   const urlCode = readUrlParams();
   if (!Array.isArray(prefs.fb.list)) prefs.fb.list = [];
   if (!prefs.fb.me || typeof prefs.fb.me !== 'object') prefs.fb.me = {};
+  if (!prefs.fb.asked || typeof prefs.fb.asked !== 'object') prefs.fb.asked = {};
   if (prefs.fb.campaign) {
     fbRemember(prefs.fb.campaign);
     // older single-campaign version kept its copy under the plain key: move it
@@ -2436,13 +2683,15 @@ async function init() {
   }
   DB = normalizeDB(DB);
   if (syncLinked() | ensureVocab()) saveLocal();
-  bindInventory(); bindDrawer(); bindLocations(); bindCurrency(); bindSettings(); bindLog(); bindArchive();
+  bindInventory(); bindDrawer(); bindLocations(); bindCurrency(); bindSettings(); bindLog(); bindArchive(); bindGate();
   $('#tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { if (b.dataset.tab === 'loc') openLoc = ''; showTab(b.dataset.tab); } });
   $('#meSel').addEventListener('change', e => { prefs.me = e.target.value; savePrefs(); if (prefs.tab === 'set') renderSettings(); });
   $('#themeBtn').addEventListener('click', () => { prefs.theme = prefs.theme === 'dark' ? 'light' : 'dark'; savePrefs(); applyTheme(); if (prefs.tab === 'set') renderSettings(); });
   $('#syncBtn').addEventListener('click', () => {
     if (!prefs.fb.campaign) { prefs.setTab = 'sync'; showTab('set'); setTimeout(() => $('#fbCode')?.focus(), 30); toast('Set up live sync first'); }
-    else if (!fbRef) fbConnect(prefs.fb.campaign).catch(e => setStatus('err', e.message));
+    else if (fbRole === 'owner' && Object.keys(fbReqs).length) { prefs.setTab = 'sync'; showTab('set'); }
+    else if (fbGate) toast($('#syncText').textContent);
+    else if (!fbRef) fbConnect(prefs.fb.campaign).catch(fbShowErr);
     else toast(fbOnline ? 'Live — changes are saved instantly' : 'Offline — changes are kept and sent when you reconnect');
   });
   window.addEventListener('beforeunload', e => { if (fbPending > 0) { e.preventDefault(); e.returnValue = ''; } });
@@ -2456,7 +2705,8 @@ async function init() {
   showTab(prefs.tab || 'inv');
   idleStatus();
   const startCode = urlCode || prefs.fb.campaign;
-  if (startCode) fbConnect(startCode).catch(e => { console.error(e); setStatus('err', e.message.slice(0, 60)); if (urlCode) toast('Could not open campaign: ' + e.message); });
+  if (startCode) fbConnect(startCode).then(() => fbSyncMyList(), e => { console.error(e); setStatus('err', e.message.slice(0, 60)); if (urlCode) toast('Could not open campaign: ' + e.message); });
+  else if (location.protocol !== 'file:') fbLoad().then(() => { if (fbUser) fbSyncMyList(); renderHeader(); if (prefs.tab === 'set') renderSettings(); }, () => { });
   $('#campSel').addEventListener('change', e => {
     const v = e.target.value;
     if (v === '__add') { e.target.value = prefs.fb.campaign; prefs.setTab = 'sync'; showTab('set'); setTimeout(() => $('#fbCode')?.focus(), 30); return; }
