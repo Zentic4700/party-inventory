@@ -296,7 +296,7 @@ tr.item:hover .qb,.qb:focus{opacity:1}
    Realtime Database (field-level writes, coins/qty as increments).
    ========================================================= */
 const APP_VERSION = 1;          // data format version (not the app build)
-const APP_BUILD = '2.4.2';     // shown top right — bump on every change
+const APP_BUILD = '2.4.3';     // shown top right — bump on every change
 const APP_BUILD_DATE = '2026-10-18';
 const LS_DATA = 'groupInvFb_data_v1';
 const LS_PREFS = 'groupInvFb_prefs_v1';
@@ -2847,7 +2847,7 @@ function renderHeader() {
   cs.classList.toggle('hidden', !multi);
   if (multi && document.activeElement !== cs)
     cs.innerHTML = list.map(c => `<option value="${esc(c.code)}" ${c.code === prefs.fb.campaign ? 'selected' : ''}>${esc(c.code === prefs.fb.campaign ? (DB.meta.name || c.name || c.code) : (c.name || c.code))}</option>`).join('')
-      + '<option value="__add">＋ Join / create campaign…</option>';
+      + `<option value="__add">${fbIsCreator() ? '＋ Join / create campaign…' : '＋ Join campaign…'}</option>`;
   $('#meSel').innerHTML = meOptions();
   renderOnline();
   document.title = (DB.meta.name ? DB.meta.name + ' · ' : '') + 'Group Inventory';
