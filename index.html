@@ -344,7 +344,7 @@ tr.item:hover .qb,.qb:focus{opacity:1}
    Realtime Database (field-level writes, coins/qty as increments).
    ========================================================= */
 const APP_VERSION = 1;          // data format version (not the app build)
-const APP_BUILD = '2.5.0';     // shown top right — bump on every change
+const APP_BUILD = '2.5.1';     // shown top right — bump on every change
 const APP_BUILD_DATE = '2026-10-18';
 const LS_DATA = 'groupInvFb_data_v1';
 const LS_PREFS = 'groupInvFb_prefs_v1';
@@ -2154,6 +2154,12 @@ const OV_GROUPS = [
     ['HP (current / max)', p => `${ovVal(p.hpCurrent)} / ${ovVal(p.hpMax)}`],
     ['Speed', p => ovBlank(p.speed) ? '—' : p.speed + ' ft.'],
     ['Initiative', p => ovMod(p.initiative)]] },
+  { key: 'details', label: 'Details', rows: [
+    ['Age', p => ovVal(p.age)],
+    ['Alignment', p => ovVal(p.alignment)],
+    ['Spell / save DC', p => ovVal(p.spellDc)],
+    ['Experience points', p => ovBlank(p.xp) ? '—' : Number(p.xp).toLocaleString('en-US')],
+    ['XP for next level', p => ovBlank(p.xpNext) ? '—' : Number(p.xpNext).toLocaleString('en-US')]] },
   { key: 'passives', label: 'Passive Scores', rows: [
     ['Passive Perception', p => ovVal(p.passivePerception)],
     ['Passive Investigation', p => ovVal(p.passiveInvestigation)],
@@ -2182,7 +2188,10 @@ function renderOverview() {
   const top = `<div class="ovr-top"><h2>Party Overview</h2><div class="seg">
       <button data-ovmode="view" class="${mode === 'view' ? 'on' : ''}">Overview</button>
       <button data-ovmode="edit" class="${mode === 'edit' ? 'on' : ''}">Edit</button></div>
-    <span class="small muted">${mode === 'view' ? 'Active characters only — retired ones are left out.' : 'Changes are saved as soon as you leave a field.'}</span></div>`;
+    <span class="small muted">${mode === 'view' ? 'Active characters only — retired ones are left out.' : 'Changes are saved as soon as you leave a field.'}</span>
+    <span class="spacer"></span>
+    <label class="small"><button data-ovio="import" title="Fill in stats from a party-overview .json file — characters are matched by name">Import…</button><input type="file" id="ovFile" accept=".json,application/json" class="hidden"></label>
+    <button data-ovio="export" title="Download the stats of the active characters as a .json file">Export</button></div>`;
   if (!act.length) { root.innerHTML = top + '<div class="panel muted">No active characters yet. Add them under Settings → Characters.</div>'; return; }
   root.innerHTML = top + (mode === 'edit' ? ovEditHtml(act) : ovViewHtml(act));
 }
@@ -2219,7 +2228,8 @@ function ovEditHtml(act) {
   return `<div class="ovr-edit"><div class="panel ovr-list">${list}</div><div class="panel ovr-form">
     <h3>Character</h3><div class="ovr-grid">
       ${fld('name', 'Character name', 'text')}${fld('playerName', 'Player name', 'text')}${fld('race', 'Race', 'text')}${fld('proficiencyBonus', 'Prof. bonus')}
-      ${fld('className', 'Class', 'text')}${fld('level', 'Level')}${fld('className2', '2nd class (optional)', 'text')}${fld('level2', '2nd class level')}</div>
+      ${fld('className', 'Class', 'text')}${fld('level', 'Level')}${fld('className2', '2nd class (optional)', 'text')}${fld('level2', '2nd class level')}
+      ${fld('age', 'Age')}${fld('alignment', 'Alignment', 'text')}${fld('spellDc', 'Spell / save DC', 'text')}${fld('xp', 'Experience points')}${fld('xpNext', 'XP for next level')}</div>
     <h3>Core &amp; Combat</h3><div class="ovr-grid narrow">
       ${fld('ac', 'Armor Class')}${fld('hpMax', 'Max HP')}${fld('hpCurrent', 'Current HP')}${fld('speed', 'Speed (ft.)')}${fld('initiative', 'Initiative bonus')}</div>
     <h3>Passive Scores</h3><div class="ovr-grid narrow">
@@ -2233,11 +2243,63 @@ function ovEditHtml(act) {
   </div></div>`;
 }
 
-const OV_TEXT = new Set(['name', 'playerName', 'race', 'className', 'className2', 'languages', 'toolProficiencies', 'pcNotes']);
+const OV_TEXT = new Set(['name', 'playerName', 'race', 'className', 'className2', 'alignment', 'spellDc', 'languages', 'toolProficiencies', 'pcNotes']);
+/* every field the overview owns (import/export only touch these) */
+const OV_FIELDS = ['playerName', 'race', 'proficiencyBonus', 'className', 'level', 'className2', 'level2', 'age', 'alignment', 'spellDc', 'xp', 'xpNext',
+  'ac', 'hpMax', 'hpCurrent', 'speed', 'initiative', 'passivePerception', 'passiveInvestigation', 'passiveInsight',
+  ...OV_ABIL.flatMap(a => [a.score, a.save, a.prof]), ...OV_SKILLS.map(ovSkillKey), 'languages', 'toolProficiencies', 'pcNotes'];
+
+/* Import a party-overview file: { app: 'party-overview', characters: [{ name, ...fields }] }.
+   Matches characters by name — exact, then one name starting with the other ("Victor" ↔ "Victor Baigorri", "Clarabel" ↔ "Clarabell"),
+   then same first word. Matched characters keep their name here; only the overview fields are written. Unmatched ones are added. */
+function ovMatch(name, taken) {
+  const k = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  const n = k(name); if (!n) return null;
+  const pool = DB.players.filter(p => !taken.has(p.id));
+  return pool.find(p => k(p.name) === n)
+    || pool.find(p => { const m = k(p.name); return m && (m.startsWith(n) || n.startsWith(m)); })
+    || pool.find(p => k(p.name).split(' ')[0] === n.split(' ')[0]) || null;
+}
+function ovImport(file) {
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const d = JSON.parse(r.result), list = Array.isArray(d) ? d : d.characters;
+      if (!Array.isArray(list)) throw new Error('no "characters" list in the file');
+      const taken = new Set(), upd = [], added = [];
+      list.forEach((c, i) => {
+        if (!c || typeof c !== 'object' || !String(c.name || '').trim()) return;
+        let p = ovMatch(c.name, taken);
+        if (p) upd.push(p.name === String(c.name).trim() ? p.name : `${String(c.name).trim()} → ${p.name}`);
+        else {
+          p = { id: uid('pl'), name: String(c.name).trim(), playerName: '', str: null, color: ['#9c7020', '#7d2e1f', '#2457a6', '#2f7d32', '#7b3fb0', '#c26a12', '#4f6f6f'][(DB.players.length) % 7], notes: '', order: now() + i };
+          DB.players.push(p); added.push(p.name);
+        }
+        taken.add(p.id);
+        OV_FIELDS.forEach(f => { if (c[f] !== undefined) p[f] = c[f]; });
+        touch(p);
+      });
+      if (!upd.length && !added.length) throw new Error('no characters found in the file');
+      const txt = `party overview imported: ${upd.length} updated${upd.length ? ' (' + upd.join(', ') + ')' : ''}${added.length ? `, ${added.length} added (${added.join(', ')})` : ''}`;
+      logEvent('settings', { text: txt });
+      commit(); toast(`Party overview: ${upd.length} updated${added.length ? ', ' + added.length + ' added' : ''}`);
+    } catch (e) { toast('Import failed: ' + e.message); }
+  };
+  r.readAsText(file);
+}
+function ovExport() {
+  const characters = sortedPlayers().filter(p => !p.retired).map(p => Object.assign({ name: p.name }, Object.fromEntries(OV_FIELDS.filter(f => !ovBlank(p[f])).map(f => [f, p[f]]))));
+  const blob = new Blob([JSON.stringify({ app: 'party-overview', version: 1, campaign: DB.meta.name || '', characters }, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'party-overview-' + vslug(DB.meta.name || 'party') + '.json'; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
 function bindOverview() {
   const root = $('#tab-ovr');
   root.addEventListener('change', e => {
     const t = e.target, o = ovOpts();
+    if (t.id === 'ovFile') { ovImport(t.files[0]); t.value = ''; return; }
     if (t.dataset.ovg || t.dataset.ovc) {
       const [list, key] = t.dataset.ovg ? ['hg', t.dataset.ovg] : ['hc', t.dataset.ovc];
       const set = new Set(o[list]); if (t.checked) set.delete(key); else set.add(key);
@@ -2256,6 +2318,8 @@ function bindOverview() {
   });
   root.addEventListener('toggle', e => { if (e.target.matches('details.ovr-opts')) { ovOpts().open = e.target.open; savePrefs(); } }, true);
   root.addEventListener('click', e => {
+    const io = e.target.closest('[data-ovio]');
+    if (io) { if (io.dataset.ovio === 'import') $('#ovFile').click(); else ovExport(); return; }
     const b = e.target.closest('[data-ovmode],[data-ovsel],[data-ovedit]'); if (!b) return;
     if (b.dataset.ovmode) prefs.ovr.mode = b.dataset.ovmode;
     else { prefs.ovr.mode = 'edit'; prefs.ovr.sel = b.dataset.ovsel || b.dataset.ovedit; }
