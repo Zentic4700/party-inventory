@@ -224,17 +224,22 @@ details.ovr-opts[open]>summary{margin-bottom:6px}
 .pill input{position:absolute;opacity:0;width:0;height:0}
 .pill:has(input:checked){background:var(--gold2);border-color:var(--gold);color:#2b2118}
 .pill:has(input:focus-visible){outline:2px solid var(--gold);outline-offset:2px}
-.ovr-wrap{overflow-x:auto;padding-bottom:8px}
+.ovr-wrap{overflow:auto;padding:0 8px 8px 0;max-height:calc(100vh - 220px);overscroll-behavior:contain}
 .ovr-cards{display:flex;align-items:flex-start;gap:12px;width:max-content}
-.ovr-card{width:200px;background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--gold2);border-radius:8px;box-shadow:var(--shadow);overflow:hidden}
-.ovr-card.lbl{width:170px;background:var(--panel2);border-top-color:var(--line2)}
-.ovr-head{height:40px;display:flex;align-items:center;gap:6px;padding:0 8px;border-bottom:1px solid var(--line2);font-family:Cinzel,serif;font-weight:700}
-.ovr-head .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ovr-card{width:200px;background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--gold2);border-radius:8px;box-shadow:var(--shadow)}
+.ovr-card.lbl{width:170px;background:var(--panel2);border-top-color:var(--line2);position:sticky;left:0;z-index:3}
+.ovr-head{height:40px;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 8px;border-bottom:1px solid var(--line2);font-family:Cinzel,serif;font-weight:700;
+  position:sticky;top:0;z-index:2;background:var(--panel);border-radius:4px 4px 0 0}
+.ovr-card.lbl .ovr-head{background:var(--panel2)}
+.ovr-head .nm{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ovr-head button{padding:2px 8px;font-size:12px;font-family:Lora,Georgia,serif}
 .ovr-grp{height:26px;line-height:26px;padding:0 8px;background:var(--bg2);font-family:Cinzel,serif;font-size:12px;font-weight:700;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ovr-row{height:26px;line-height:26px;padding:0 8px;border-bottom:1px solid var(--line);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ovr-card:not(.lbl) .ovr-row{text-align:center}
 .ovr-card.lbl .ovr-row{font-weight:600;color:var(--muted)}
 .ovr-row.tall{height:46px;line-height:20px;padding:3px 8px;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.ovr-card>.ovr-row:last-child{border-radius:0 0 8px 8px}
+.skl{display:flex;gap:4px} .skl select{flex:0 0 auto;width:62px;padding:5px 2px} .skl input{flex:1;min-width:0}
 .ovr-card>.ovr-row:last-child{border-bottom:0}
 .ovr-edit{display:grid;grid-template-columns:200px 1fr;gap:14px;align-items:start}
 @media (max-width:760px){.ovr-edit{grid-template-columns:1fr}}
@@ -344,7 +349,7 @@ tr.item:hover .qb,.qb:focus{opacity:1}
    Realtime Database (field-level writes, coins/qty as increments).
    ========================================================= */
 const APP_VERSION = 1;          // data format version (not the app build)
-const APP_BUILD = '2.5.1';     // shown top right — bump on every change
+const APP_BUILD = '2.5.2';     // shown top right — bump on every change
 const APP_BUILD_DATE = '2026-10-18';
 const LS_DATA = 'groupInvFb_data_v1';
 const LS_PREFS = 'groupInvFb_prefs_v1';
@@ -2130,6 +2135,11 @@ const OV_ABIL = [
 const OV_SKILLS = ['Acrobatics', 'Animal Handling', 'Arcana', 'Athletics', 'Deception', 'History', 'Insight', 'Intimidation', 'Investigation',
   'Medicine', 'Nature', 'Perception', 'Performance', 'Persuasion', 'Religion', 'Sleight of Hand', 'Stealth', 'Survival'];
 const ovSkillKey = n => 'skill' + n.replace(/[^a-zA-Z]/g, '');
+const ovSkillProf = n => ovSkillKey(n) + 'Prof';            // 0 = none, 1 = proficient, 2 = expertise
+const OV_SKILL_ABIL = { Acrobatics: 'dexScore', 'Animal Handling': 'wisScore', Arcana: 'intScore', Athletics: 'str', Deception: 'chaScore', History: 'intScore',
+  Insight: 'wisScore', Intimidation: 'chaScore', Investigation: 'intScore', Medicine: 'wisScore', Nature: 'intScore', Perception: 'wisScore',
+  Performance: 'chaScore', Persuasion: 'chaScore', Religion: 'intScore', 'Sleight of Hand': 'dexScore', Stealth: 'dexScore', Survival: 'wisScore' };
+const OV_PROF_MARK = ['', ' ●', ' ●●'];
 const ovBlank = v => v === null || v === undefined || v === '';
 const ovMod = v => ovBlank(v) ? '—' : (num(v) >= 0 ? '+' : '') + num(v);
 const ovVal = v => ovBlank(v) ? '—' : String(v);
@@ -2165,14 +2175,10 @@ const OV_GROUPS = [
     ['Passive Investigation', p => ovVal(p.passiveInvestigation)],
     ['Passive Insight', p => ovVal(p.passiveInsight)]] },
   { key: 'saves', label: 'Abilities & Saves', rows: OV_ABIL.map(a => [a.abbr, p => ovAbilText(p, a)]) },
-  { key: 'skills', label: 'Skills', rows: OV_SKILLS.map(n => [n, p => ovMod(p[ovSkillKey(n)])]) },
+  { key: 'skills', label: 'Skills', rows: OV_SKILLS.map(n => [n, p => ovBlank(p[ovSkillKey(n)]) ? '—' : ovMod(p[ovSkillKey(n)]) + (OV_PROF_MARK[int(p[ovSkillProf(n)])] || '')]) },
   { key: 'languages', label: 'Languages & Tools', rows: [
     ['Languages', p => ovVal(p.languages), true],
-    ['Tool Proficiencies', p => ovVal(p.toolProficiencies), true]] },
-  { key: 'inv', label: 'Inventory', rows: [
-    ['Carried load', p => { const c = capacityOf(p.id); return fmtW(holderLoad(p.id)) + (c ? ' / ' + c + ' lb' : ''); }],
-    ['Items carried', p => String(holderCount(p.id))],
-    ['Coins', p => { const pu = purseOf(p.id); return pu && coinValue(pu) ? coinStr(pu) : '—'; }]] }
+    ['Tool Proficiencies', p => ovVal(p.toolProficiencies), true]] }
 ];
 const overviewHidden = () => !!(DB.meta.hideOverview || prefs.hideOvr);
 function ovOpts() {
@@ -2188,13 +2194,24 @@ function renderOverview() {
   const top = `<div class="ovr-top"><h2>Party Overview</h2><div class="seg">
       <button data-ovmode="view" class="${mode === 'view' ? 'on' : ''}">Overview</button>
       <button data-ovmode="edit" class="${mode === 'edit' ? 'on' : ''}">Edit</button></div>
-    <span class="small muted">${mode === 'view' ? 'Active characters only — retired ones are left out.' : 'Changes are saved as soon as you leave a field.'}</span>
+    <span class="small muted">${mode === 'view' ? 'Active characters only · ● proficient · ●● expertise' : 'Changes are saved as soon as you leave a field.'}</span>
     <span class="spacer"></span>
     <label class="small"><button data-ovio="import" title="Fill in stats from a party-overview .json file — characters are matched by name">Import…</button><input type="file" id="ovFile" accept=".json,application/json" class="hidden"></label>
     <button data-ovio="export" title="Download the stats of the active characters as a .json file">Export</button></div>`;
   if (!act.length) { root.innerHTML = top + '<div class="panel muted">No active characters yet. Add them under Settings → Characters.</div>'; return; }
+  const ow = $('#tab-ovr .ovr-wrap'), keep = ow ? [ow.scrollTop, ow.scrollLeft] : null;   // a live update shouldn't jump the view
   root.innerHTML = top + (mode === 'edit' ? ovEditHtml(act) : ovViewHtml(act));
+  ovFit();
+  const nw = $('#tab-ovr .ovr-wrap'); if (nw && keep) { nw.scrollTop = keep[0]; nw.scrollLeft = keep[1]; }
 }
+/* the card area gets its own scroll box that fills the rest of the window, so the name row (top) and the label column (left)
+   stay frozen while scrolling — like frozen panes in Excel */
+function ovFit() {
+  const w = $('#tab-ovr .ovr-wrap'); if (!w || $('#tab-ovr').classList.contains('hidden')) return;
+  const top = w.getBoundingClientRect().top + window.scrollY;
+  w.style.maxHeight = Math.max(320, window.innerHeight - top - 14) + 'px';
+}
+window.addEventListener('resize', () => ovFit());
 
 function ovViewHtml(act) {
   const o = ovOpts(), groups = OV_GROUPS.filter(g => !o.hg.includes(g.key)), shown = act.filter(p => !o.hc.includes(p.id));
@@ -2236,7 +2253,10 @@ function ovEditHtml(act) {
       ${fld('passivePerception', 'Perception')}${fld('passiveInvestigation', 'Investigation')}${fld('passiveInsight', 'Insight')}</div>
     <h3>Ability Scores &amp; Saving Throws</h3><div class="abil-grid">${abil}</div>
     <p class="help">The modifier is worked out from the score. Save = modifier, plus prof. bonus (${ovMod(ovProfBonus(p))}) when "Prof." is ticked — type over it for anything extra. STR is also used for carrying capacity.</p>
-    <h3>Skills</h3><div class="ovr-grid narrow">${OV_SKILLS.map(n => fld(ovSkillKey(n), n)).join('')}</div>
+    <h3>Skills</h3><div class="ovr-grid">${OV_SKILLS.map(n => { const pk = ovSkillProf(n), lv = int(p[pk]); return `<label class="f">${esc(n)} <span class="small muted">(${OV_ABIL.find(a => a.score === OV_SKILL_ABIL[n]).abbr})</span>
+      <span class="skl"><select data-ov="${pk}" data-pid="${id}" title="Proficiency">${['—', 'Prof', 'Expert'].map((l, v) => `<option value="${v}" ${v === lv ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      <input type="number" step="1" data-ov="${ovSkillKey(n)}" data-pid="${id}" value="${esc(p[ovSkillKey(n)] ?? '')}"></span></label>`; }).join('')}</div>
+    <p class="help">Choosing Prof or Expert (or changing the ability score / level) fills the bonus in as modifier + prof. bonus (×2 for expertise). Type over it for anything extra.</p>
     <h3>Languages &amp; Tools</h3><div class="ovr-grid">
       ${fld('languages', 'Languages (comma separated)', 'textarea', 'full')}${fld('toolProficiencies', 'Tool proficiencies (comma separated)', 'textarea', 'full')}</div>
     <h3>Notes</h3><div class="ovr-grid">${fld('pcNotes', 'Backstory hooks, goals, quirks', 'textarea', 'full')}</div>
@@ -2247,7 +2267,7 @@ const OV_TEXT = new Set(['name', 'playerName', 'race', 'className', 'className2'
 /* every field the overview owns (import/export only touch these) */
 const OV_FIELDS = ['playerName', 'race', 'proficiencyBonus', 'className', 'level', 'className2', 'level2', 'age', 'alignment', 'spellDc', 'xp', 'xpNext',
   'ac', 'hpMax', 'hpCurrent', 'speed', 'initiative', 'passivePerception', 'passiveInvestigation', 'passiveInsight',
-  ...OV_ABIL.flatMap(a => [a.score, a.save, a.prof]), ...OV_SKILLS.map(ovSkillKey), 'languages', 'toolProficiencies', 'pcNotes'];
+  ...OV_ABIL.flatMap(a => [a.score, a.save, a.prof]), ...OV_SKILLS.flatMap(n => [ovSkillKey(n), ovSkillProf(n)]), 'languages', 'toolProficiencies', 'pcNotes'];
 
 /* Import a party-overview file: { app: 'party-overview', characters: [{ name, ...fields }] }.
    Matches characters by name — exact, then one name starting with the other ("Victor" ↔ "Victor Baigorri", "Clarabel" ↔ "Clarabell"),
@@ -2314,9 +2334,15 @@ function bindOverview() {
     const a = OV_ABIL.find(x => x.score === k || x.prof === k);
     if (a) recalc(a);
     if (['proficiencyBonus', 'level', 'level2'].includes(k)) OV_ABIL.filter(x => p[x.prof]).forEach(recalc);
+    // skills: modifier + prof. bonus × (0 / 1 / 2), when their proficiency, ability score or the prof. bonus changes
+    const recalcSkill = n => { const m = ovAbilMod(p[OV_SKILL_ABIL[n]]); if (m !== null) p[ovSkillKey(n)] = m + ovProfBonus(p) * int(p[ovSkillProf(n)]); };
+    const sk = OV_SKILLS.find(n => ovSkillProf(n) === k);
+    if (sk) recalcSkill(sk);
+    if (a && a.score === k) OV_SKILLS.filter(n => OV_SKILL_ABIL[n] === k).forEach(recalcSkill);
+    if (['proficiencyBonus', 'level', 'level2'].includes(k)) OV_SKILLS.filter(n => int(p[ovSkillProf(n)])).forEach(recalcSkill);
     touch(p); commit({ defer: true });
   });
-  root.addEventListener('toggle', e => { if (e.target.matches('details.ovr-opts')) { ovOpts().open = e.target.open; savePrefs(); } }, true);
+  root.addEventListener('toggle', e => { if (e.target.matches('details.ovr-opts')) { ovOpts().open = e.target.open; savePrefs(); ovFit(); } }, true);
   root.addEventListener('click', e => {
     const io = e.target.closest('[data-ovio]');
     if (io) { if (io.dataset.ovio === 'import') $('#ovFile').click(); else ovExport(); return; }
