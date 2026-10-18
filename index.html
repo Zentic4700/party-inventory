@@ -208,6 +208,52 @@ tfoot td{font-weight:600;background:var(--panel2)}
 .coins input{width:78px;text-align:right}
 .coin-h{font-family:Cinzel,serif}
 .c-pp{color:#7f8fa6} .c-gp{color:var(--gold)} .c-ep{color:#5f8f88} .c-sp{color:#8a8a8a} .c-cp{color:#a2582c}
+.hcoins{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin:8px 0 2px;padding-top:8px;border-top:1px solid var(--line)}
+.hcoins>b{font-family:Cinzel,serif;font-size:12px;color:var(--muted)} .hcoins label{display:flex;align-items:center;gap:4px;font-size:13px}
+.hcoins input{width:74px;text-align:right}
+/* party overview */
+.ovr-top{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-bottom:12px}
+.ovr-top h2{margin:0;color:var(--gold)}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:6px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:var(--panel2)} .seg button+button{border-left:1px solid var(--line2)}
+.seg button.on{background:var(--gold2);color:#2b2118;font-weight:600}
+details.ovr-opts{padding:8px 14px} details.ovr-opts>summary{cursor:pointer;font-family:Cinzel,serif;font-weight:700;color:var(--gold)}
+details.ovr-opts[open]>summary{margin-bottom:6px}
+.pillrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:6px 0}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 11px;border:1px solid var(--line2);border-radius:999px;background:var(--panel2);cursor:pointer;font-size:13px;user-select:none}
+.pill input{position:absolute;opacity:0;width:0;height:0}
+.pill:has(input:checked){background:var(--gold2);border-color:var(--gold);color:#2b2118}
+.pill:has(input:focus-visible){outline:2px solid var(--gold);outline-offset:2px}
+.ovr-wrap{overflow-x:auto;padding-bottom:8px}
+.ovr-cards{display:flex;align-items:flex-start;gap:12px;width:max-content}
+.ovr-card{width:200px;background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--gold2);border-radius:8px;box-shadow:var(--shadow);overflow:hidden}
+.ovr-card.lbl{width:170px;background:var(--panel2);border-top-color:var(--line2)}
+.ovr-head{height:40px;display:flex;align-items:center;gap:6px;padding:0 8px;border-bottom:1px solid var(--line2);font-family:Cinzel,serif;font-weight:700}
+.ovr-head .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ovr-head button{padding:2px 8px;font-size:12px;font-family:Lora,Georgia,serif}
+.ovr-grp{height:26px;line-height:26px;padding:0 8px;background:var(--bg2);font-family:Cinzel,serif;font-size:12px;font-weight:700;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ovr-row{height:26px;line-height:26px;padding:0 8px;border-bottom:1px solid var(--line);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ovr-card.lbl .ovr-row{font-weight:600;color:var(--muted)}
+.ovr-row.tall{height:46px;line-height:20px;padding:3px 8px;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.ovr-card>.ovr-row:last-child{border-bottom:0}
+.ovr-edit{display:grid;grid-template-columns:200px 1fr;gap:14px;align-items:start}
+@media (max-width:760px){.ovr-edit{grid-template-columns:1fr}}
+.ovr-list{display:flex;flex-direction:column;gap:4px}
+.ovr-list button{display:flex;align-items:center;gap:8px;text-align:left}
+.ovr-list button.on{background:var(--gold2);color:#2b2118;border-color:var(--gold);font-weight:600}
+.ovr-form h3{font-size:14px;color:var(--gold);margin:14px 0 6px;padding-bottom:3px;border-bottom:1px solid var(--line)}
+.ovr-form h3:first-of-type{margin-top:0}
+.ovr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px 10px}
+.ovr-grid.narrow{grid-template-columns:repeat(auto-fill,minmax(118px,1fr))}
+.ovr-grid .full{grid-column:1/-1}
+.abil-grid{display:grid;grid-template-columns:repeat(6,minmax(96px,1fr));gap:8px}
+@media (max-width:900px){.abil-grid{grid-template-columns:repeat(3,minmax(96px,1fr))}}
+.abil{border:1px solid var(--line2);border-radius:8px;padding:6px;background:var(--panel2);display:flex;flex-direction:column;gap:4px;align-items:center}
+.abil .ab{font-family:Cinzel,serif;font-weight:700;color:var(--gold)}
+.abil .sc{display:flex;gap:4px;align-items:center} .abil .sc input{width:52px;text-align:center}
+.abil .md{min-width:34px;text-align:center;font-weight:700;border:1px solid var(--line2);border-radius:5px;padding:4px 2px;background:var(--panel)} .abil .md:empty{visibility:hidden}
+.abil .sv{display:flex;gap:4px;align-items:center;font-size:12px;color:var(--muted)} .abil .sv input[type=number]{width:52px;text-align:center}
+
 .ledger{max-height:340px;overflow:auto;font-size:13px}
 .ledger div{padding:4px 0;border-bottom:1px dotted var(--line)}
 
@@ -271,6 +317,7 @@ tr.item:hover .qb,.qb:focus{opacity:1}
     <button data-tab="arc"><span class="ti">⚱</span>Archive</button>
     <button data-tab="log"><span class="ti">✎</span>Log</button>
     <button data-tab="set"><span class="ti">⚙</span>Settings</button>
+    <button data-tab="ovr"><span class="ti">☷</span>Party Overview</button>
   </nav>
 </header>
 
@@ -282,6 +329,7 @@ tr.item:hover .qb,.qb:focus{opacity:1}
   <section id="tab-arc" class="hidden"></section>
   <section id="tab-log" class="hidden"></section>
   <section id="tab-set" class="hidden"></section>
+  <section id="tab-ovr" class="hidden"></section>
 </main>
 
 <aside class="drawer" id="drawer" aria-label="Item card"></aside>
@@ -296,7 +344,7 @@ tr.item:hover .qb,.qb:focus{opacity:1}
    Realtime Database (field-level writes, coins/qty as increments).
    ========================================================= */
 const APP_VERSION = 1;          // data format version (not the app build)
-const APP_BUILD = '2.4.3';     // shown top right — bump on every change
+const APP_BUILD = '2.5.0';     // shown top right — bump on every change
 const APP_BUILD_DATE = '2026-10-18';
 const LS_DATA = 'groupInvFb_data_v1';
 const LS_PREFS = 'groupInvFb_prefs_v1';
@@ -394,7 +442,9 @@ let prefs = {
   sort: { key: 'name', dir: 1 }, group: 'none',
   logf: { q: '', types: [], by: '', from: '', to: '', dir: -1 },
   arcf: { q: '', reason: '', who: '', dir: -1 },
-  setTab: 'chars'
+  setTab: 'chars',
+  hideOvr: false,                                  // this browser: hide the Party Overview tab
+  ovr: { mode: 'view', sel: '', opts: {} }         // Party Overview: view/edit, chosen character, display options per campaign
 };
 const sel = new Set();          // selected item ids (bulk actions)
 let openLoc = '';               // container view: holder id currently open
@@ -545,6 +595,8 @@ const itemValue = it => num(it.qty) * num(it.valueCp);
 function purseOf(holderId) { return DB.purses.find(p => p.holderId === holderId); }
 function coinCount(p) { return p ? COINS.reduce((s, c) => s + int(p[c]), 0) : 0; }
 function coinValue(p) { return p ? COINS.reduce((s, c) => s + int(p[c]) * COIN_CP[c], 0) : 0; }
+/* weight of a purse in lb (0 when coin weight is switched off in Settings) */
+function coinWeight(p) { return DB.meta.coinWeight ? coinCount(p) / (num(DB.meta.coinsPerLb, 50) || 50) : 0; }
 
 /* weight this holder is burdened with (stops at weightless containers) */
 function holderLoad(id, seen = new Set()) {
@@ -552,13 +604,13 @@ function holderLoad(id, seen = new Set()) {
   let w = 0;
   DB.items.forEach(it => { if (it.holderId === id) w += itemWeight(it); });
   DB.locations.forEach(l => { if (l.parentId === id) w += num(l.selfWeight) + (l.weightless ? 0 : holderLoad(l.id, seen)); });
-  if (DB.meta.coinWeight) w += coinCount(purseOf(id)) / (num(DB.meta.coinsPerLb, 50) || 50);
+  w += coinWeight(purseOf(id));
   return w;
 }
-/* everything inside (all nesting, ignores weightless) */
+/* everything inside (all nesting, ignores weightless) — coins in the container's purse included */
 function holderContentsWeight(id, seen = new Set()) {
   if (seen.has(id)) return 0; seen.add(id);
-  let w = 0;
+  let w = coinWeight(purseOf(id));
   DB.items.forEach(it => { if (it.holderId === id) w += itemWeight(it); });
   DB.locations.forEach(l => { if (l.parentId === id) w += num(l.selfWeight) + holderContentsWeight(l.id, seen); });
   return w;
@@ -1476,11 +1528,12 @@ function holderCard(id) {
   const load = p ? holderLoad(id) : holderContentsWeight(id);
   const cap = capacityOf(id);
   const inner = DB.locations.filter(x => x.parentId === id).length;
+  const pu = purseOf(id), coinTxt = pu && coinValue(pu) ? coinStr(pu) : '';
   const border = p ? `style="border-top-color:${esc(p.color || '#c9a14a')}"` : '';
   return `<div class="card" data-open="${esc(id)}" ${border}>
     <h3>${icon} ${esc(holderName(id))}</h3>
     <div class="small muted">${sub}</div>
-    <div class="stats small"><span><b>Items</b>${holderCount(id)}</span><span><b>Weight</b>${fmtW(load)}${cap ? ' / ' + cap + ' lb' : ''}</span><span><b>Value</b>${fmtCp(holderValue(id))}</span>${inner ? `<span><b>Holds</b>${inner} container${inner === 1 ? '' : 's'}</span>` : ''}</div>
+    <div class="stats small"><span><b>Items</b>${holderCount(id)}</span><span><b>Weight</b>${fmtW(load)}${cap ? ' / ' + cap + ' lb' : ''}</span><span><b>Value</b>${fmtCp(holderValue(id))}</span>${coinTxt ? `<span><b>Coins</b>${esc(coinTxt)}</span>` : ''}${inner ? `<span><b>Holds</b>${inner} container${inner === 1 ? '' : 's'}</span>` : ''}</div>
     ${capBar(load, cap)}
   </div>`;
 }
@@ -1526,10 +1579,11 @@ function containerView(id) {
     <div class="stats"><span><b>Items (all nested)</b>${holderCount(id)}</span>
       <span><b>${p ? 'Carried load' : 'Contents weight'}</b>${fmtW(load)}${cap ? ' / ' + cap + ' lb' : ''}</span>
       <span><b>Item value</b>${fmtCp(holderValue(id))}</span>
-      ${coins && coinValue(coins) ? `<span><b>Coins</b>${COINS.filter(c => coins[c]).map(c => coins[c] + ' ' + c).join(', ')}</span>` : ''}
       ${l && num(l.selfWeight) ? `<span><b>Own weight</b>${fmtW(num(l.selfWeight))}</span>` : ''}
       ${l && l.weightless ? '<span class="muted small">Contents don\'t burden whoever carries it</span>' : ''}</div>
     ${capBar(load, cap)}
+    <div class="hcoins coins"><b>Coins</b>${COINS.map(c => `<label><span class="coin-h c-${c}">${c}</span><input type="number" min="0" step="1" data-hpurse="${esc(id)}" data-coin="${c}" value="${coins ? int(coins[c]) : 0}"></label>`).join('')}
+      <span class="small muted">${coins && coinCount(coins) ? `${coinCount(coins).toLocaleString('en-US')} coins · ${DB.meta.coinWeight ? fmtW(coinWeight(coins)) + ' (in the weight above)' : 'weight not counted (Settings)'} · worth ${fmtGp(coinValue(coins))}` : `${num(DB.meta.coinsPerLb, 50)} coins = 1 lb — weight is added automatically`}</span></div>
     ${(p || l).notes ? `<div class="desc" style="margin-top:8px">${esc((p || l).notes)}</div>` : ''}
   </div>`;
   const subHtml = subs.length ? `<h3 class="cinzel" style="margin:4px 0 8px;color:var(--gold)">Containers inside</h3><div class="cards" style="margin-bottom:14px">${subs.map(s => holderCard(s.id)).join('')}</div>` : '';
@@ -1545,6 +1599,14 @@ function addLocation(parentId = '') {
 function bindLocations() {
   const root = $('#tab-loc');
   root.addEventListener('dblclick', rowDblClick);
+  root.addEventListener('change', e => {   // coins row on a character / container page
+    const t = e.target; if (!t.dataset.hpurse) return;
+    const c = t.dataset.coin, from = int((purseOf(t.dataset.hpurse) || {})[c]), to = Math.max(0, int(t.value));
+    if (from === to) { t.value = to; return; }
+    const p = ensurePurse(t.dataset.hpurse); p[c] = to; touch(p);
+    logEvent('coins', { text: `${holderName(t.dataset.hpurse)}: ${c} set ${from} → ${to}` });
+    commit({ defer: true });
+  });
   root.addEventListener('click', e => {
     const t = e.target;
     if (t.matches('input[type=checkbox]')) return;
@@ -1779,12 +1841,14 @@ function renderSettings() {
       <label class="f full">Campaign / party name <input data-meta="name" value="${esc(DB.meta.name)}"></label>
       <label class="f">Coins per lb <input type="number" min="1" data-meta="coinsPerLb" value="${esc(DB.meta.coinsPerLb)}"></label>
       <label class="full checks"><label><input type="checkbox" data-meta="coinWeight" ${DB.meta.coinWeight ? 'checked' : ''}> Count coin weight in carried load</label></label>
+      <label class="full checks"><label><input type="checkbox" data-meta="showOverview" ${DB.meta.hideOverview ? '' : 'checked'}> Show the Party Overview tab (for everyone in this campaign)</label></label>
     </div>
   </div>
 
   <div class="panel"><h2>This browser</h2>
     <div class="fgrid">
       <label class="f">I am <select id="setMe">${meOptions('— choose —')}</select></label>
+      <label class="full checks"><label><input type="checkbox" id="setShowOvr" ${prefs.hideOvr ? '' : 'checked'}> Show the Party Overview tab in this browser</label></label>
       <label class="f">Theme <select id="setTheme"><option value="light" ${prefs.theme !== 'dark' ? 'selected' : ''}>Parchment</option><option value="dark" ${prefs.theme === 'dark' ? 'selected' : ''}>Dark leather</option></select></label>
     </div>
     <p class="help">"I am" is written on changes and ledger entries so the group can see who did what. Pick one of your characters, or yourself.</p>
@@ -1870,8 +1934,11 @@ function bindSettings() {
       touch(l); commit({ defer: true });
     } else if (t.dataset.meta) {
       const k = t.dataset.meta;
-      DB.meta[k] = k === 'coinWeight' ? t.checked : (k === 'name' ? t.value : num(t.value)); touch(DB.meta); commit({ defer: true });
+      if (k === 'showOverview') DB.meta.hideOverview = !t.checked;
+      else DB.meta[k] = k === 'coinWeight' ? t.checked : (k === 'name' ? t.value : num(t.value));
+      touch(DB.meta); commit({ defer: true });
     } else if (t.id === 'setMe') { setMe(t.value); }
+    else if (t.id === 'setShowOvr') { prefs.hideOvr = !t.checked; savePrefs(); renderAll(); }
     else if (t.id === 'setTheme') { prefs.theme = t.value; savePrefs(); applyTheme(); }
     else if (t.id === 'importFile') importFile(t.files[0]);
   });
@@ -2043,6 +2110,157 @@ function importFile(file) {
     } catch (e) { toast('Import failed: ' + e.message); }
   };
   r.readAsText(file);
+}
+
+/* =================== PARTY OVERVIEW ===================
+   Same idea as the Campaign maker's Party Overview: one column card per character, every row the same height
+   so values line up with the label card on the left. Stats live on the character record itself (flat fields,
+   so two people editing different stats at once never overwrite each other); STR score is the same field
+   as the STR used for carrying capacity. Only active (not retired) characters are shown.
+   Display options are per browser and per campaign. The tab can be hidden for the whole campaign
+   (Settings → Rules & browser → Party rules) or just in this browser. */
+const OV_ABIL = [
+  { abbr: 'STR', name: 'Strength', score: 'str', save: 'saveStr', prof: 'saveStrProf' },
+  { abbr: 'DEX', name: 'Dexterity', score: 'dexScore', save: 'saveDex', prof: 'saveDexProf' },
+  { abbr: 'CON', name: 'Constitution', score: 'conScore', save: 'saveCon', prof: 'saveConProf' },
+  { abbr: 'INT', name: 'Intelligence', score: 'intScore', save: 'saveInt', prof: 'saveIntProf' },
+  { abbr: 'WIS', name: 'Wisdom', score: 'wisScore', save: 'saveWis', prof: 'saveWisProf' },
+  { abbr: 'CHA', name: 'Charisma', score: 'chaScore', save: 'saveCha', prof: 'saveChaProf' }
+];
+const OV_SKILLS = ['Acrobatics', 'Animal Handling', 'Arcana', 'Athletics', 'Deception', 'History', 'Insight', 'Intimidation', 'Investigation',
+  'Medicine', 'Nature', 'Perception', 'Performance', 'Persuasion', 'Religion', 'Sleight of Hand', 'Stealth', 'Survival'];
+const ovSkillKey = n => 'skill' + n.replace(/[^a-zA-Z]/g, '');
+const ovBlank = v => v === null || v === undefined || v === '';
+const ovMod = v => ovBlank(v) ? '—' : (num(v) >= 0 ? '+' : '') + num(v);
+const ovVal = v => ovBlank(v) ? '—' : String(v);
+function ovAbilMod(score) { if (ovBlank(score) || !isFinite(+score)) return null; return Math.floor((num(score) - 10) / 2); }
+function ovProfBonus(p) {
+  if (!ovBlank(p.proficiencyBonus) && isFinite(+p.proficiencyBonus)) return num(p.proficiencyBonus);
+  const lvl = int(p.level) + int(p.level2); return lvl > 0 ? 2 + Math.floor((lvl - 1) / 4) : 2;
+}
+const ovClass = (c, l) => [c || '', l ? 'Lvl ' + l : ''].filter(Boolean).join(' · ');
+function ovAbilText(p, a) {
+  const m = ovAbilMod(p[a.score]), hasSave = !ovBlank(p[a.save]);
+  if (m === null && !hasSave) return '—';
+  return `${m === null ? 'no score' : `${p[a.score]} (${ovMod(m)})`} · Save ${ovMod(p[a.save])}${p[a.prof] ? ' ●' : ''}`;
+}
+const OV_GROUPS = [
+  { key: 'core', label: 'Core + Combat', rows: [
+    ['Race', p => ovVal(p.race)],
+    ['Class / Level', p => ovClass(p.className, p.level) || '—'],
+    ['2nd Class / Level', p => ovClass(p.className2, p.level2) || '—'],
+    ['Proficiency Bonus', p => ovBlank(p.proficiencyBonus) ? '—' : ovMod(p.proficiencyBonus)],
+    ['AC', p => ovVal(p.ac)],
+    ['HP (current / max)', p => `${ovVal(p.hpCurrent)} / ${ovVal(p.hpMax)}`],
+    ['Speed', p => ovBlank(p.speed) ? '—' : p.speed + ' ft.'],
+    ['Initiative', p => ovMod(p.initiative)]] },
+  { key: 'passives', label: 'Passive Scores', rows: [
+    ['Passive Perception', p => ovVal(p.passivePerception)],
+    ['Passive Investigation', p => ovVal(p.passiveInvestigation)],
+    ['Passive Insight', p => ovVal(p.passiveInsight)]] },
+  { key: 'saves', label: 'Abilities & Saves', rows: OV_ABIL.map(a => [a.abbr, p => ovAbilText(p, a)]) },
+  { key: 'skills', label: 'Skills', rows: OV_SKILLS.map(n => [n, p => ovMod(p[ovSkillKey(n)])]) },
+  { key: 'languages', label: 'Languages & Tools', rows: [
+    ['Languages', p => ovVal(p.languages), true],
+    ['Tool Proficiencies', p => ovVal(p.toolProficiencies), true]] },
+  { key: 'inv', label: 'Inventory', rows: [
+    ['Carried load', p => { const c = capacityOf(p.id); return fmtW(holderLoad(p.id)) + (c ? ' / ' + c + ' lb' : ''); }],
+    ['Items carried', p => String(holderCount(p.id))],
+    ['Coins', p => { const pu = purseOf(p.id); return pu && coinValue(pu) ? coinStr(pu) : '—'; }]] }
+];
+const overviewHidden = () => !!(DB.meta.hideOverview || prefs.hideOvr);
+function ovOpts() {
+  const k = prefs.fb.campaign || 'local';
+  const o = prefs.ovr.opts[k] || (prefs.ovr.opts[k] = {});
+  if (!Array.isArray(o.hg)) o.hg = [];   // hidden groups
+  if (!Array.isArray(o.hc)) o.hc = [];   // hidden characters ("players here today")
+  return o;
+}
+
+function renderOverview() {
+  const root = $('#tab-ovr'), act = activePlayers(), mode = prefs.ovr.mode === 'edit' ? 'edit' : 'view';
+  const top = `<div class="ovr-top"><h2>Party Overview</h2><div class="seg">
+      <button data-ovmode="view" class="${mode === 'view' ? 'on' : ''}">Overview</button>
+      <button data-ovmode="edit" class="${mode === 'edit' ? 'on' : ''}">Edit</button></div>
+    <span class="small muted">${mode === 'view' ? 'Active characters only — retired ones are left out.' : 'Changes are saved as soon as you leave a field.'}</span></div>`;
+  if (!act.length) { root.innerHTML = top + '<div class="panel muted">No active characters yet. Add them under Settings → Characters.</div>'; return; }
+  root.innerHTML = top + (mode === 'edit' ? ovEditHtml(act) : ovViewHtml(act));
+}
+
+function ovViewHtml(act) {
+  const o = ovOpts(), groups = OV_GROUPS.filter(g => !o.hg.includes(g.key)), shown = act.filter(p => !o.hc.includes(p.id));
+  const opts = `<details class="panel ovr-opts" ${o.open ? 'open' : ''}><summary>Display Options</summary>
+    <div class="pillrow"><span class="small muted">Show:</span>${OV_GROUPS.map(g => `<label class="pill"><input type="checkbox" data-ovg="${g.key}" ${o.hg.includes(g.key) ? '' : 'checked'}>${esc(g.label)}</label>`).join('')}</div>
+    <div class="pillrow"><span class="small muted">Players here today:</span>${act.map(p => `<label class="pill"><input type="checkbox" data-ovc="${esc(p.id)}" ${o.hc.includes(p.id) ? '' : 'checked'}><span class="pdot" style="background:${esc(p.color || '#9c7020')}"></span>${esc(p.name || '(unnamed)')}</label>`).join('')}</div>
+  </details>`;
+  const col = (head, cell) => groups.map(g => `<div class="ovr-grp">${head ? esc(g.label) : '&nbsp;'}</div>` +
+    g.rows.map(([lbl, fn, tall]) => { const v = head ? lbl : cell(fn); return `<div class="ovr-row${tall ? ' tall' : ''}" title="${esc(v)}">${esc(v)}</div>`; }).join('')).join('');
+  const label = `<div class="ovr-card lbl"><div class="ovr-head"></div>${col(true)}</div>`;
+  const cards = shown.map(p => `<div class="ovr-card" style="border-top-color:${esc(p.color || '#c9a14a')}">
+    <div class="ovr-head"><span class="pdot" style="background:${esc(p.color || '#9c7020')}"></span><span class="nm" title="${esc(p.name || '')}">${esc(p.name || '(unnamed)')}</span>
+      <button data-ovedit="${esc(p.id)}" title="Edit ${esc(p.name || 'character')}">✎ Edit</button></div>
+    ${col(false, fn => fn(p))}</div>`).join('');
+  return opts + (groups.length ? `<div class="ovr-wrap"><div class="ovr-cards">${label}${cards || '<div class="muted" style="padding:10px">No one is ticked in "Players here today".</div>'}</div></div>`
+    : '<p class="muted">All stat groups are hidden — tick one under Display Options.</p>');
+}
+
+function ovEditHtml(act) {
+  const p = act.find(x => x.id === prefs.ovr.sel) || act[0];
+  const id = esc(p.id);
+  const fld = (k, label, type = 'number', cls = '') => `<label class="f ${cls}">${esc(label)}${type === 'textarea'
+    ? `<textarea rows="2" data-ov="${k}" data-pid="${id}">${esc(p[k] ?? '')}</textarea>`
+    : `<input type="${type}" ${type === 'number' ? 'step="1"' : ''} data-ov="${k}" data-pid="${id}" value="${esc(p[k] ?? '')}">`}</label>`;
+  const list = act.map(x => `<button data-ovsel="${esc(x.id)}" class="${x.id === p.id ? 'on' : ''}"><span class="pdot" style="background:${esc(x.color || '#9c7020')}"></span>${esc(x.name || '(unnamed)')}</button>`).join('');
+  const abil = OV_ABIL.map(a => { const m = ovAbilMod(p[a.score]); return `<div class="abil" title="${a.name}"><span class="ab">${a.abbr}</span>
+      <div class="sc"><input type="number" step="1" data-ov="${a.score}" data-pid="${id}" value="${esc(p[a.score] ?? '')}" aria-label="${a.name} score"><span class="md" title="Modifier">${m === null ? '' : ovMod(m)}</span></div>
+      <span class="small muted">Saving throw</span>
+      <div class="sv"><label title="Proficient in ${a.name} saves"><input type="checkbox" data-ov="${a.prof}" data-pid="${id}" ${p[a.prof] ? 'checked' : ''}> Prof.</label>
+        <input type="number" step="1" data-ov="${a.save}" data-pid="${id}" value="${esc(p[a.save] ?? '')}" aria-label="${a.name} save"></div></div>`; }).join('');
+  return `<div class="ovr-edit"><div class="panel ovr-list">${list}</div><div class="panel ovr-form">
+    <h3>Character</h3><div class="ovr-grid">
+      ${fld('name', 'Character name', 'text')}${fld('playerName', 'Player name', 'text')}${fld('race', 'Race', 'text')}${fld('proficiencyBonus', 'Prof. bonus')}
+      ${fld('className', 'Class', 'text')}${fld('level', 'Level')}${fld('className2', '2nd class (optional)', 'text')}${fld('level2', '2nd class level')}</div>
+    <h3>Core &amp; Combat</h3><div class="ovr-grid narrow">
+      ${fld('ac', 'Armor Class')}${fld('hpMax', 'Max HP')}${fld('hpCurrent', 'Current HP')}${fld('speed', 'Speed (ft.)')}${fld('initiative', 'Initiative bonus')}</div>
+    <h3>Passive Scores</h3><div class="ovr-grid narrow">
+      ${fld('passivePerception', 'Perception')}${fld('passiveInvestigation', 'Investigation')}${fld('passiveInsight', 'Insight')}</div>
+    <h3>Ability Scores &amp; Saving Throws</h3><div class="abil-grid">${abil}</div>
+    <p class="help">The modifier is worked out from the score. Save = modifier, plus prof. bonus (${ovMod(ovProfBonus(p))}) when "Prof." is ticked — type over it for anything extra. STR is also used for carrying capacity.</p>
+    <h3>Skills</h3><div class="ovr-grid narrow">${OV_SKILLS.map(n => fld(ovSkillKey(n), n)).join('')}</div>
+    <h3>Languages &amp; Tools</h3><div class="ovr-grid">
+      ${fld('languages', 'Languages (comma separated)', 'textarea', 'full')}${fld('toolProficiencies', 'Tool proficiencies (comma separated)', 'textarea', 'full')}</div>
+    <h3>Notes</h3><div class="ovr-grid">${fld('pcNotes', 'Backstory hooks, goals, quirks', 'textarea', 'full')}</div>
+  </div></div>`;
+}
+
+const OV_TEXT = new Set(['name', 'playerName', 'race', 'className', 'className2', 'languages', 'toolProficiencies', 'pcNotes']);
+function bindOverview() {
+  const root = $('#tab-ovr');
+  root.addEventListener('change', e => {
+    const t = e.target, o = ovOpts();
+    if (t.dataset.ovg || t.dataset.ovc) {
+      const [list, key] = t.dataset.ovg ? ['hg', t.dataset.ovg] : ['hc', t.dataset.ovc];
+      const set = new Set(o[list]); if (t.checked) set.delete(key); else set.add(key);
+      o[list] = [...set]; savePrefs(); renderOverview(); return;
+    }
+    const k = t.dataset.ov, p = k && getPlayer(t.dataset.pid); if (!p) return;
+    if (t.type === 'checkbox') p[k] = t.checked;
+    else if (OV_TEXT.has(k)) p[k] = k === 'name' ? (t.value.trim() || p.name) : t.value;
+    else p[k] = t.value === '' ? null : num(t.value);
+    // saves follow the score / proficiency (and the prof. bonus when level or bonus changes)
+    const recalc = a => { const m = ovAbilMod(p[a.score]); if (m !== null) p[a.save] = m + (p[a.prof] ? ovProfBonus(p) : 0); };
+    const a = OV_ABIL.find(x => x.score === k || x.prof === k);
+    if (a) recalc(a);
+    if (['proficiencyBonus', 'level', 'level2'].includes(k)) OV_ABIL.filter(x => p[x.prof]).forEach(recalc);
+    touch(p); commit({ defer: true });
+  });
+  root.addEventListener('toggle', e => { if (e.target.matches('details.ovr-opts')) { ovOpts().open = e.target.open; savePrefs(); } }, true);
+  root.addEventListener('click', e => {
+    const b = e.target.closest('[data-ovmode],[data-ovsel],[data-ovedit]'); if (!b) return;
+    if (b.dataset.ovmode) prefs.ovr.mode = b.dataset.ovmode;
+    else { prefs.ovr.mode = 'edit'; prefs.ovr.sel = b.dataset.ovsel || b.dataset.ovedit; }
+    savePrefs(); renderOverview(); if (b.dataset.ovedit) window.scrollTo({ top: 0 });
+  });
 }
 
 /* =================== ACTIVITY LOG =================== */
@@ -2855,7 +3073,7 @@ function renderHeader() {
 function showTab(t) {
   prefs.tab = t; savePrefs(); sel.clear();
   $$('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
-  ['inv', 'loc', 'cur', 'arc', 'log', 'set'].forEach(x => $('#tab-' + x).classList.toggle('hidden', x !== t));
+  ['inv', 'loc', 'cur', 'arc', 'log', 'set', 'ovr'].forEach(x => $('#tab-' + x).classList.toggle('hidden', x !== t));
   if (t === 'loc') openLoc = openLoc || '';
   renderTab(t);
 }
@@ -2866,10 +3084,14 @@ function renderTab(t) {
   else if (t === 'arc') renderArchive();
   else if (t === 'set') renderSettings();
   else if (t === 'log') renderLog();
+  else if (t === 'ovr') renderOverview();
 }
 /* render header + visible tab (unless listed in keep) */
 function renderAll(keep = []) {
   renderHeader();
+  const ovHidden = overviewHidden();
+  $('#tabs [data-tab="ovr"]').classList.toggle('hidden', ovHidden);
+  if (ovHidden && prefs.tab === 'ovr') { showTab('inv'); return; }
   if (!keep.includes(prefs.tab)) renderTab(prefs.tab);
   else if (prefs.tab === 'inv') { /* nothing */ }
 }
@@ -2903,7 +3125,7 @@ async function init() {
   if (local) DB = local;
   DB = normalizeDB(DB);
   if (syncLinked() | ensureVocab()) saveLocal();
-  bindInventory(); bindDrawer(); bindLocations(); bindCurrency(); bindSettings(); bindLog(); bindArchive(); bindGate(); bindRoster();
+  bindInventory(); bindDrawer(); bindLocations(); bindCurrency(); bindSettings(); bindLog(); bindArchive(); bindGate(); bindRoster(); bindOverview();
   $('#tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { if (b.dataset.tab === 'loc') openLoc = ''; showTab(b.dataset.tab); } });
   $('#meSel').addEventListener('change', e => setMe(e.target.value));
   $('#themeBtn').addEventListener('click', () => { prefs.theme = prefs.theme === 'dark' ? 'light' : 'dark'; savePrefs(); applyTheme(); if (prefs.tab === 'set') renderSettings(); });
