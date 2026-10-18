@@ -235,7 +235,19 @@ details.ovr-opts[open]>summary{margin-bottom:6px}
 .ovr-head button{padding:2px 8px;font-size:12px;font-family:Lora,Georgia,serif}
 .ovr-grp{height:26px;line-height:26px;padding:0 8px;background:var(--bg2);font-family:Cinzel,serif;font-size:12px;font-weight:700;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ovr-row{height:26px;line-height:26px;padding:0 8px;border-bottom:1px solid var(--line);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ovr-card:not(.lbl) .ovr-row{text-align:center}
+.ovr-card:not(.lbl) .ovr-row{text-align:center;font-variant-numeric:tabular-nums lining-nums}
+.ovr-row.split{padding:0}
+.ovr-sub{height:24px;line-height:24px;display:grid;grid-template-columns:1fr 1fr 1fr;background:var(--bg2);font-size:11px;font-weight:600;color:var(--muted);border-top:1px solid var(--line)}
+.ovr-sub>span{text-align:center}
+.ovsk{display:inline-block;min-width:3.4ch;padding:0 6px;line-height:19px;border-radius:5px;border:1px solid transparent;text-align:right;font-variant-numeric:tabular-nums lining-nums}
+.ovsk.p1{border-color:var(--gold2);background:var(--panel2)}
+.ovsk.p2,.ovsk.sv-demo,.ovab .sv.p{background:var(--gold2);border-color:var(--gold);color:#2b2118;font-weight:700}
+.ovr-top .ovsk{line-height:16px;font-size:12px;min-width:0}
+.ovab{display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;height:100%}
+.ovab>span{text-align:center} .ovab>span+span{border-left:1px dotted var(--line2)}
+.ovab .sc{color:var(--muted);font-size:13px}
+.ovab .md{display:inline-block;min-width:3ch;text-align:center;border:1px solid var(--line2);border-radius:4px;line-height:18px;padding:0 3px;background:var(--panel2);font-weight:700}
+.ovab .sv{display:inline-block;min-width:3.6ch;text-align:right;border-radius:4px;line-height:18px;padding:0 5px;border:1px solid transparent}
 .ovr-card.lbl .ovr-row{font-weight:600;color:var(--muted)}
 .ovr-row.tall{height:46px;line-height:20px;padding:3px 8px;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .ovr-card>.ovr-row:last-child{border-radius:0 0 8px 8px}
@@ -349,7 +361,7 @@ tr.item:hover .qb,.qb:focus{opacity:1}
    Realtime Database (field-level writes, coins/qty as increments).
    ========================================================= */
 const APP_VERSION = 1;          // data format version (not the app build)
-const APP_BUILD = '2.5.2';     // shown top right — bump on every change
+const APP_BUILD = '2.5.4';     // shown top right — bump on every change
 const APP_BUILD_DATE = '2026-10-18';
 const LS_DATA = 'groupInvFb_data_v1';
 const LS_PREFS = 'groupInvFb_prefs_v1';
@@ -2139,7 +2151,6 @@ const ovSkillProf = n => ovSkillKey(n) + 'Prof';            // 0 = none, 1 = pro
 const OV_SKILL_ABIL = { Acrobatics: 'dexScore', 'Animal Handling': 'wisScore', Arcana: 'intScore', Athletics: 'str', Deception: 'chaScore', History: 'intScore',
   Insight: 'wisScore', Intimidation: 'chaScore', Investigation: 'intScore', Medicine: 'wisScore', Nature: 'intScore', Perception: 'wisScore',
   Performance: 'chaScore', Persuasion: 'chaScore', Religion: 'intScore', 'Sleight of Hand': 'dexScore', Stealth: 'dexScore', Survival: 'wisScore' };
-const OV_PROF_MARK = ['', ' ●', ' ●●'];
 const ovBlank = v => v === null || v === undefined || v === '';
 const ovMod = v => ovBlank(v) ? '—' : (num(v) >= 0 ? '+' : '') + num(v);
 const ovVal = v => ovBlank(v) ? '—' : String(v);
@@ -2153,6 +2164,18 @@ function ovAbilText(p, a) {
   const m = ovAbilMod(p[a.score]), hasSave = !ovBlank(p[a.save]);
   if (m === null && !hasSave) return '—';
   return `${m === null ? 'no score' : `${p[a.score]} (${ovMod(m)})`} · Save ${ovMod(p[a.save])}${p[a.prof] ? ' ●' : ''}`;
+}
+/* a cell can be plain text or { html, t } (t = tooltip) */
+function ovSkillCell(p, n) {
+  const v = p[ovSkillKey(n)], l = int(p[ovSkillProf(n)]);
+  if (ovBlank(v)) return '—';
+  return { html: `<span class="ovsk p${l}">${esc(ovMod(v))}</span>`, t: `${n} ${ovMod(v)}${['', ' (proficient)', ' (expertise)'][l] || ''}` };
+}
+function ovAbilCell(p, a) {
+  const s = p[a.score], m = ovAbilMod(s), sv = p[a.save];
+  if (ovBlank(s) && ovBlank(sv)) return '—';
+  return { html: `<div class="ovab"><span class="sc">${ovBlank(s) ? '—' : esc(s)}</span><span><span class="md">${m === null ? '—' : ovMod(m)}</span></span><span><span class="sv ${p[a.prof] ? 'p' : ''}">${esc(ovMod(sv))}</span></span></div>`,
+    t: ovAbilText(p, a) + (p[a.prof] ? ' (proficient)' : ''), split: true };
 }
 const OV_GROUPS = [
   { key: 'core', label: 'Core + Combat', rows: [
@@ -2168,14 +2191,14 @@ const OV_GROUPS = [
     ['Age', p => ovVal(p.age)],
     ['Alignment', p => ovVal(p.alignment)],
     ['Spell / save DC', p => ovVal(p.spellDc)],
-    ['Experience points', p => ovBlank(p.xp) ? '—' : Number(p.xp).toLocaleString('en-US')],
-    ['XP for next level', p => ovBlank(p.xpNext) ? '—' : Number(p.xpNext).toLocaleString('en-US')]] },
+    ['Experience points', p => ovBlank(p.xp) ? '—' : Number(p.xp).toLocaleString('da-DK')],
+    ['XP for next level', p => ovBlank(p.xpNext) ? '—' : Number(p.xpNext).toLocaleString('da-DK')]] },
   { key: 'passives', label: 'Passive Scores', rows: [
     ['Passive Perception', p => ovVal(p.passivePerception)],
     ['Passive Investigation', p => ovVal(p.passiveInvestigation)],
     ['Passive Insight', p => ovVal(p.passiveInsight)]] },
-  { key: 'saves', label: 'Abilities & Saves', rows: OV_ABIL.map(a => [a.abbr, p => ovAbilText(p, a)]) },
-  { key: 'skills', label: 'Skills', rows: OV_SKILLS.map(n => [n, p => ovBlank(p[ovSkillKey(n)]) ? '—' : ovMod(p[ovSkillKey(n)]) + (OV_PROF_MARK[int(p[ovSkillProf(n)])] || '')]) },
+  { key: 'saves', label: 'Abilities & Saves', sub: ['Score', 'Mod', 'Save'], rows: OV_ABIL.map(a => [a.abbr, p => ovAbilCell(p, a)]) },
+  { key: 'skills', label: 'Skills', rows: OV_SKILLS.map(n => [n, p => ovSkillCell(p, n)]) },
   { key: 'languages', label: 'Languages & Tools', rows: [
     ['Languages', p => ovVal(p.languages), true],
     ['Tool Proficiencies', p => ovVal(p.toolProficiencies), true]] }
@@ -2194,7 +2217,7 @@ function renderOverview() {
   const top = `<div class="ovr-top"><h2>Party Overview</h2><div class="seg">
       <button data-ovmode="view" class="${mode === 'view' ? 'on' : ''}">Overview</button>
       <button data-ovmode="edit" class="${mode === 'edit' ? 'on' : ''}">Edit</button></div>
-    <span class="small muted">${mode === 'view' ? 'Active characters only · ● proficient · ●● expertise' : 'Changes are saved as soon as you leave a field.'}</span>
+    <span class="small muted">${mode === 'view' ? 'Active characters only · skills: <span class="ovsk">+2</span> <span class="ovsk p1">proficient</span> <span class="ovsk p2">expertise</span> · <span class="ovsk sv-demo">+9</span> proficient save' : 'Changes are saved as soon as you leave a field.'}</span>
     <span class="spacer"></span>
     <label class="small"><button data-ovio="import" title="Fill in stats from a party-overview .json file — characters are matched by name">Import…</button><input type="file" id="ovFile" accept=".json,application/json" class="hidden"></label>
     <button data-ovio="export" title="Download the stats of the active characters as a .json file">Export</button></div>`;
@@ -2220,7 +2243,12 @@ function ovViewHtml(act) {
     <div class="pillrow"><span class="small muted">Players here today:</span>${act.map(p => `<label class="pill"><input type="checkbox" data-ovc="${esc(p.id)}" ${o.hc.includes(p.id) ? '' : 'checked'}><span class="pdot" style="background:${esc(p.color || '#9c7020')}"></span>${esc(p.name || '(unnamed)')}</label>`).join('')}</div>
   </details>`;
   const col = (head, cell) => groups.map(g => `<div class="ovr-grp">${head ? esc(g.label) : '&nbsp;'}</div>` +
-    g.rows.map(([lbl, fn, tall]) => { const v = head ? lbl : cell(fn); return `<div class="ovr-row${tall ? ' tall' : ''}" title="${esc(v)}">${esc(v)}</div>`; }).join('')).join('');
+    (g.sub ? `<div class="ovr-sub">${head ? '&nbsp;' : g.sub.map(x => `<span>${esc(x)}</span>`).join('')}</div>` : '') +
+    g.rows.map(([lbl, fn, tall]) => {
+      const v = head ? lbl : cell(fn);
+      if (v && typeof v === 'object') return `<div class="ovr-row${v.split ? ' split' : ''}" title="${esc(v.t || '')}">${v.html}</div>`;
+      return `<div class="ovr-row${tall ? ' tall' : ''}" title="${esc(v)}">${esc(v)}</div>`;
+    }).join('')).join('');
   const label = `<div class="ovr-card lbl"><div class="ovr-head"></div>${col(true)}</div>`;
   const cards = shown.map(p => `<div class="ovr-card" style="border-top-color:${esc(p.color || '#c9a14a')}">
     <div class="ovr-head"><span class="pdot" style="background:${esc(p.color || '#9c7020')}"></span><span class="nm" title="${esc(p.name || '')}">${esc(p.name || '(unnamed)')}</span>

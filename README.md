@@ -16,6 +16,8 @@ Versionsnummeret står øverst til højre i appen. Sammenlign det lokalt og på 
 - v2.5.0 · Ny fane "Party Overview" (oversigt + redigering af karakterernes stats, som i Campaign maker)
 - v2.5.1 · Party Overview: Import/Export af stats (.json) og ny gruppe "Details" (alder, alignment, spell DC, XP)
 - v2.5.2 · Party Overview: Inventory-gruppen fjernet, værdier centreret, navnerække og label-kolonne står fast ved scroll, Prof/Expert på skills
+- v2.5.3 · Party Overview: skills vises med kasser (outline = prof, guld = expertise) og Abilities & Saves i tre kolonner (Score | Mod | Save)
+- v2.5.4 · Party Overview: XP vises med punktum som tusindtalsseparator (126.389)
 
 ## Filer
 - `index.html` – appen
@@ -58,7 +60,8 @@ Kun tinman4700@gmail.com kan oprette kampagner. Det står både i reglerne og i 
 - **Display Options** (foldet sammen): vælg hvilke grupper og hvilke karakterer ("Players here today") der vises. Huskes pr. browser og pr. kampagne.
 - Retired karakterer vises ikke.
 - Kortene har deres egen scroll: navnerækken står fast i toppen og stat-navnene til venstre, når man scroller (som frysning af ruder i Excel).
-- Skills har **— / Prof / Expert**. Valget udfylder bonus = modifier + prof. bonus (×2 ved expertise); vises som ● og ●● i oversigten.
+- Skills har **— / Prof / Expert**. Valget udfylder bonus = modifier + prof. bonus (×2 ved expertise); vises i oversigten som en kasse: ingen kasse = ikke prof, outline = proficient, guld = expertise.
+- **Abilities & Saves** står i tre kolonner: Score | Mod | Save. Modifier i en lille kasse; en guld save = proficient.
 - **Import… / Export** øverst til højre: importér stats fra en party-overview .json-fil. Karakterer matches på navn (også "Victor" ↔ "Victor Baigorri" og "Clarabel" ↔ "Clarabell"); kun stats-felterne skrives, og navne uden match oprettes som nye karakterer. Export giver samme format.
 - Skjul fanen: Settings → Rules & browser → **Party rules** (for alle i kampagnen) eller **This browser** (kun dig).
 
