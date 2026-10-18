@@ -58,7 +58,8 @@ body.gated main>section:not(#gate){display:none!important} body.gated nav.tabs{v
 .rchars{display:flex;flex-wrap:wrap;gap:4px;align-items:center} .rchip{display:inline-flex;align-items:center;gap:2px;border:1px solid var(--line2);border-radius:12px;padding:0 4px 0 2px;font-size:13px;background:var(--panel2)}
 .rchip.on{border-color:var(--gold);font-weight:700} .rchip.ret{opacity:.6} .rchip button{border:0;background:none;padding:0 3px;cursor:pointer;color:var(--muted);font-size:12px} .rchip.on .rstar{color:var(--gold)}
 .srow.pl.ret input{opacity:.6} .chip.ret{opacity:.6}
-.usebtn{font-size:11px;padding:0 6px;margin-left:6px;border-radius:9px;line-height:16px;vertical-align:1px;color:var(--good);border-color:currentColor;background:transparent}
+.ncell{display:flex;align-items:center;gap:8px} .nmain{flex:1;min-width:0}
+.usebtn{flex:none;font-size:11px;padding:0 6px;border-radius:9px;line-height:16px;color:var(--good);border-color:currentColor;background:transparent;white-space:nowrap}
 .ver{font-size:11px;color:var(--muted);white-space:nowrap;align-self:flex-start;margin-top:2px;opacity:.8}
 .brand h1{font-size:20px;color:var(--gold)} .brand .camp{font-size:13px;color:var(--muted)}
 .campsel{font:inherit;font-size:13px;color:var(--muted);background:transparent;border:1px solid transparent;border-radius:4px;padding:0 2px;margin-left:-3px;cursor:pointer;max-width:260px}
@@ -235,7 +236,8 @@ table.itable{table-layout:fixed;min-width:980px}
 table.itable td{overflow-wrap:anywhere}
 table.itable th{overflow:hidden;text-overflow:ellipsis}
 .qwrap{display:inline-grid;grid-template-columns:22px 56px 22px;align-items:center;justify-items:center}
-.qwrap .qn{justify-self:end;padding-right:4px}
+.qwrap .qn{justify-self:center}
+table.itable th.c,table.itable td.c{text-align:center}
 .qb{margin:0}
 .qb{padding:0 6px;font-size:12px;line-height:18px;margin:0 3px;opacity:0;transition:opacity .15s;background:var(--panel2)}
 tr.item:hover .qb,.qb:focus{opacity:1}
@@ -294,7 +296,7 @@ tr.item:hover .qb,.qb:focus{opacity:1}
    Realtime Database (field-level writes, coins/qty as increments).
    ========================================================= */
 const APP_VERSION = 1;          // data format version (not the app build)
-const APP_BUILD = '2.4.0';     // shown top right — bump on every change
+const APP_BUILD = '2.4.2';     // shown top right — bump on every change
 const APP_BUILD_DATE = '2026-10-18';
 const LS_DATA = 'groupInvFb_data_v1';
 const LS_PREFS = 'groupInvFb_prefs_v1';
@@ -303,8 +305,8 @@ const COINS = ['pp', 'gp', 'ep', 'sp', 'cp'];
 const COIN_CP = { pp: 1000, gp: 100, ep: 50, sp: 10, cp: 1 };
 const RARITIES = ['Mundane', 'Common', 'Uncommon', 'Rare', 'Very Rare', 'Legendary', 'Artifact', 'Varies', 'Unknown'];
 const RAR_ORDER = Object.fromEntries(RARITIES.map((r, i) => [r, i]));
-const LOC_KINDS = { location: '⌂ Location', container: '▣ Container', vehicle: '⛟ Vehicle', mount: '♞ Mount' };
-const LOC_ICON = { location: '⌂', container: '▣', vehicle: '⛟', mount: '♞' };
+const LOC_KINDS = { location: '⌂ Location', container: '▣ Container', vehicle: '☸\uFE0E Vehicle', mount: '♞ Mount' };
+const LOC_ICON = { location: '⌂', container: '▣', vehicle: '☸\uFE0E', mount: '♞' };
 const CORE_2014 = ["Player's Handbook (2014)", "Dungeon Master's Guide (2014)", 'Monster Manual (2014)'];
 
 const $ = (s, r = document) => r.querySelector(s);
@@ -686,19 +688,20 @@ function itemBadges(it) {
 function itemRow(it, cols) {
   const cells = {
     sel: `<td><input type="checkbox" data-sel="${esc(it.id)}" ${sel.has(it.id) ? 'checked' : ''}></td>`,
-    name: `<td><span class="iname">${esc(it.name || '(unnamed)')}</span>${itemBadges(it)}${isConsumable(it) && num(it.qty) > 0 ? `<button class="usebtn" data-use="${esc(it.id)}" title="Use one — it goes to the archive as used up">use 1</button>` : ''}${it.tags ? `<div class="small muted">${esc(it.tags)}</div>` : ''}</td>`,
-    qty: `<td class="num qcell"><span class="qwrap"><button class="qb" data-q="-1" data-id="${esc(it.id)}" title="One less">−</button><span class="qn">${esc(+num(it.qty).toFixed(2))}</span><button class="qb" data-q="1" data-id="${esc(it.id)}" title="One more">+</button></span></td>`,
-    wEach: `<td class="num muted">${fmtW(num(it.weightEach))}</td>`,
-    weight: `<td class="num">${fmtW(itemWeight(it))}</td>`,
-    value: `<td class="num" title="${it.valueCp ? 'each ' + fmtCp(it.valueCp) : ''}">${fmtCp(itemValue(it))}</td>`,
-    holder: `<td>${esc(holderLabel(it.holderId))}</td>`,
-    type: `<td class="small">${esc(it.type || '')}</td>`,
-    rarity: `<td class="small ${rarClass(it.rarity)}">${esc(it.rarity && it.rarity !== 'Mundane' ? it.rarity : '')}</td>`
+    name: `<td><div class="ncell"><div class="nmain"><span class="iname">${esc(it.name || '(unnamed)')}</span>${itemBadges(it)}${it.tags ? `<div class="small muted">${esc(it.tags)}</div>` : ''}</div>${isConsumable(it) && num(it.qty) > 0 ? `<button class="usebtn" data-use="${esc(it.id)}" title="Use one — it goes to the archive as used up">use 1</button>` : ''}</div></td>`,
+    qty: `<td class="num qcell c"><span class="qwrap"><button class="qb" data-q="-1" data-id="${esc(it.id)}" title="One less">−</button><span class="qn">${esc(+num(it.qty).toFixed(2))}</span><button class="qb" data-q="1" data-id="${esc(it.id)}" title="One more">+</button></span></td>`,
+    wEach: `<td class="num muted c">${fmtW(num(it.weightEach))}</td>`,
+    weight: `<td class="num c">${fmtW(itemWeight(it))}</td>`,
+    value: `<td class="num c" title="${it.valueCp ? 'each ' + fmtCp(it.valueCp) : ''}">${fmtCp(itemValue(it))}</td>`,
+    holder: `<td class="c">${esc(holderLabel(it.holderId))}</td>`,
+    type: `<td class="small c">${esc(it.type || '')}</td>`,
+    rarity: `<td class="small c ${rarClass(it.rarity)}">${esc(it.rarity && it.rarity !== 'Mundane' ? it.rarity : '')}</td>`
   };
   return `<tr class="item ${sel.has(it.id) ? 'sel' : ''}" data-item="${esc(it.id)}">${cols.map(c => cells[c]).join('')}</tr>`;
 }
 const COL_W = { sel: '36px', qty: '124px', wEach: '82px', weight: '86px', value: '96px', holder: '210px', type: '150px', rarity: '96px' };
-const INV_COLS = [['sel', ''], ['name', 'Name'], ['qty', 'Qty'], ['wEach', 'Wt each'], ['weight', 'Weight'], ['value', 'Value'], ['holder', 'Carried by / Location'], ['type', 'Type'], ['rarity', 'Rarity']];
+const INV_COLS = [['sel', ''], ['name', 'Name'], ['qty', 'Quantity'], ['wEach', 'Wt each'], ['weight', 'Weight'], ['value', 'Value'], ['holder', 'Carried by / Location'], ['type', 'Type'], ['rarity', 'Rarity']];
+const CENTER_COLS = new Set(['qty', 'wEach', 'weight', 'value', 'holder', 'type', 'rarity']);
 const SORTABLE = { name: 'name', qty: 'qty', weight: 'weight', value: 'value', holder: 'holder', type: 'type', rarity: 'rarity' };
 
 function itemsTable(list, cols, opts = {}) {
@@ -706,9 +709,10 @@ function itemsTable(list, cols, opts = {}) {
     const label = (INV_COLS.find(x => x[0] === c) || [c, c])[1];
     if (c === 'sel') return `<th class="nosort"><input type="checkbox" data-selall ${list.length && list.every(i => sel.has(i.id)) ? 'checked' : ''}></th>`;
     const sk = SORTABLE[c];
-    if (!sk || opts.nosort) return `<th class="nosort${c === 'wEach' ? ' right' : ''}">${label}</th>`;
+    const cc = CENTER_COLS.has(c) ? ' c' : '';
+    if (!sk || opts.nosort) return `<th class="nosort${cc}">${label}</th>`;
     const arr = prefs.sort.key === sk ? `<span class="arr">${prefs.sort.dir > 0 ? '▲' : '▼'}</span>` : '';
-    return `<th data-sort="${sk}"${['qty', 'weight', 'value'].includes(c) ? ' class="right"' : ''}>${label} ${arr}</th>`;
+    return `<th data-sort="${sk}"${cc ? ' class="c"' : ''}>${label} ${arr}</th>`;
   }).join('');
   let body = '';
   if (!list.length) body = `<tr><td colspan="${cols.length}" class="empty">${opts.empty || 'No items.'}</td></tr>`;
@@ -723,7 +727,7 @@ function itemsTable(list, cols, opts = {}) {
     });
   } else body = list.map(it => itemRow(it, cols)).join('');
   const tw = list.reduce((s, i) => s + itemWeight(i), 0), tv = list.reduce((s, i) => s + itemValue(i), 0);
-  const foot = list.length ? `<tfoot><tr>${cols.map(c => c === 'name' ? `<td>${list.length} item${list.length === 1 ? '' : 's'}</td>` : c === 'weight' ? `<td class="num">${fmtW(tw)}</td>` : c === 'value' ? `<td class="num">${fmtCp(tv)}</td>` : c === 'qty' ? `<td class="num qcell"><span class="qwrap"><span></span><span class="qn">${+list.reduce((s, i) => s + num(i.qty), 0).toFixed(2)}</span><span></span></span></td>` : '<td></td>').join('')}</tr></tfoot>` : '';
+  const foot = list.length ? `<tfoot><tr>${cols.map(c => c === 'name' ? `<td>${list.length} item${list.length === 1 ? '' : 's'}</td>` : c === 'weight' ? `<td class="num c">${fmtW(tw)}</td>` : c === 'value' ? `<td class="num c">${fmtCp(tv)}</td>` : c === 'qty' ? `<td class="num qcell c"><span class="qwrap"><span></span><span class="qn">${+list.reduce((s, i) => s + num(i.qty), 0).toFixed(2)}</span><span></span></span></td>` : '<td></td>').join('')}</tr></tfoot>` : '';
   // fixed column widths so nothing shifts when a number changes
   const colg = '<colgroup>' + cols.map(c => `<col${COL_W[c] ? ` style="width:${COL_W[c]}"` : ''}>`).join('') + '</colgroup>';
   return `<div class="tablewrap"><table class="itable">${colg}<thead><tr>${head}</tr></thead><tbody>${body}</tbody>${foot}</table></div>`;
@@ -1411,10 +1415,10 @@ function renderArchive() {
     <button class="small" id="axDir" title="Toggle order">${(f.dir || -1) < 0 ? 'Newest first ▼' : 'Oldest first ▲'}</button>
     ${active ? '<button class="ghost small" data-ax="clear">✕ Clear filters</button>' : ''}
   </div></div>
-  <div class="tablewrap"><table class="itable arct"><thead><tr><th class="nosort">Name</th><th class="nosort right">Qty</th><th class="nosort right">Value</th><th class="nosort">Reason</th><th class="nosort">Who</th><th class="nosort">Came from</th><th class="nosort">Archived</th><th class="nosort">Note</th><th class="nosort"></th></tr></thead>
+  <div class="tablewrap"><table class="itable arct"><thead><tr><th class="nosort">Name</th><th class="nosort c">Quantity</th><th class="nosort c">Value</th><th class="nosort">Reason</th><th class="nosort">Who</th><th class="nosort">Came from</th><th class="nosort">Archived</th><th class="nosort">Note</th><th class="nosort"></th></tr></thead>
   <tbody>${list.length ? list.map(it => { const a = it.archived || {}; return `<tr class="item" data-arc="${esc(it.id)}">
     <td><span class="iname">${esc(it.name || '(unnamed)')}</span>${it.magical ? '<span class="badge b-magic">✦ magic</span>' : ''}${a.withId ? `<div class="small muted">↳ inside ${esc(getArc(a.withId)?.name || 'a container')}</div>` : ''}${a.locs && a.locs.length && !a.withId ? `<span class="badge" style="color:var(--gold)">▣</span>` : ''}</td>
-    <td class="num">${esc(+num(it.qty).toFixed(2))}</td><td class="num">${fmtCp(itemValue(it))}</td>
+    <td class="num c">${esc(+num(it.qty).toFixed(2))}</td><td class="num c">${fmtCp(itemValue(it))}</td>
     <td class="small">${esc(ARC_REASONS[a.reason] || '')}</td><td class="small">${esc(a.takenBy ? holderName(a.takenBy) : '')}</td>
     <td class="small">${esc(a.fromName || '')}</td><td class="small nowrap">${esc(fmtTime(a.at))}${a.by ? `<div class="muted">${esc(a.by)}</div>` : ''}</td>
     <td class="small"><i>${esc(a.note || '')}</i></td>
