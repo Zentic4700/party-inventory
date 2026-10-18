@@ -14,6 +14,8 @@ Versionsnummeret står øverst til højre i appen. Sammenlign det lokalt og på 
 - v2.4.3 · Spillere ser "＋ Join campaign…" i kampagne-dropdownen, kun DM-kontoen ser "Join / create"
 - v2.4.4 · Mønter direkte på karakter- og container-siden; mønternes vægt tælles nu med i containerens vægt
 - v2.5.0 · Ny fane "Party Overview" (oversigt + redigering af karakterernes stats, som i Campaign maker)
+- v2.5.1 · Party Overview: Import/Export af stats (.json) og ny gruppe "Details" (alder, alignment, spell DC, XP)
+- v2.5.2 · Party Overview: Inventory-gruppen fjernet, værdier centreret, navnerække og label-kolonne står fast ved scroll, Prof/Expert på skills
 
 ## Filer
 - `index.html` – appen
@@ -50,11 +52,14 @@ Kun tinman4700@gmail.com kan oprette kampagner. Det står både i reglerne og i 
 - Vægten tæller kun, når "coin weight" er slået til i Settings.
 
 ## Party Overview (v2.5.0)
-- Fanen **Party Overview** (efter Settings) viser ét kort pr. aktiv karakter side om side, med samme rækker som Campaign makers Party Overview: Core + Combat, Passive Scores, Abilities & Saves, Skills, Languages & Tools — plus **Inventory** (båret vægt, antal ting, mønter).
+- Fanen **Party Overview** (efter Settings) viser ét kort pr. aktiv karakter side om side, med samme rækker som Campaign makers Party Overview: Core + Combat, Passive Scores, Abilities & Saves, Skills, Languages & Tools — og Details (alder, alignment, spell DC, XP).
 - **Overview / Edit** øverst. I Edit vælger man karakter til venstre og udfylder stats; det gemmes, så snart man forlader feltet, og synkroniseres live. "✎ Edit" på et kort springer direkte dertil.
 - Modifier regnes ud fra ability score, og saves udfyldes automatisk (+ prof. bonus når "Prof." er sat). STR er det samme felt som STR under Characters (bæreevne).
 - **Display Options** (foldet sammen): vælg hvilke grupper og hvilke karakterer ("Players here today") der vises. Huskes pr. browser og pr. kampagne.
 - Retired karakterer vises ikke.
+- Kortene har deres egen scroll: navnerækken står fast i toppen og stat-navnene til venstre, når man scroller (som frysning af ruder i Excel).
+- Skills har **— / Prof / Expert**. Valget udfylder bonus = modifier + prof. bonus (×2 ved expertise); vises som ● og ●● i oversigten.
+- **Import… / Export** øverst til højre: importér stats fra en party-overview .json-fil. Karakterer matches på navn (også "Victor" ↔ "Victor Baigorri" og "Clarabel" ↔ "Clarabell"); kun stats-felterne skrives, og navne uden match oprettes som nye karakterer. Export giver samme format.
 - Skjul fanen: Settings → Rules & browser → **Party rules** (for alle i kampagnen) eller **This browser** (kun dig).
 
 ## Retired karakterer
