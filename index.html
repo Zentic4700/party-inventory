@@ -52,6 +52,13 @@ body.gated main>section:not(#gate){display:none!important} body.gated nav.tabs{v
 #syncBtn{position:relative} #syncBtn.req::after{content:attr(data-n);position:absolute;top:-4px;right:-4px;min-width:15px;height:15px;border-radius:8px;background:var(--accent);color:#fff;font:700 10px/15px sans-serif;text-align:center;padding:0 3px}
 .reqn{display:inline-block;min-width:18px;border-radius:9px;background:var(--accent);color:#fff;font:700 11px/18px sans-serif;text-align:center;padding:0 5px;vertical-align:1px}
 .acct{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.online{display:inline-flex;gap:3px;align-items:center;cursor:default} .online:empty{display:none}
+.odot{width:20px;height:20px;border-radius:50%;color:#fff;font:700 11px/20px sans-serif;text-align:center;box-shadow:0 0 0 2px var(--bg2)}
+.srow.ros{grid-template-columns:150px 210px minmax(220px,1fr) 110px 44px;min-width:780px}
+.rchars{display:flex;flex-wrap:wrap;gap:4px;align-items:center} .rchip{display:inline-flex;align-items:center;gap:2px;border:1px solid var(--line2);border-radius:12px;padding:0 4px 0 2px;font-size:13px;background:var(--panel2)}
+.rchip.on{border-color:var(--gold);font-weight:700} .rchip.ret{opacity:.6} .rchip button{border:0;background:none;padding:0 3px;cursor:pointer;color:var(--muted);font-size:12px} .rchip.on .rstar{color:var(--gold)}
+.srow.pl.ret input{opacity:.6} .chip.ret{opacity:.6}
+.usebtn{font-size:11px;padding:0 6px;margin-left:6px;border-radius:9px;line-height:16px;vertical-align:1px;color:var(--good);border-color:currentColor;background:transparent}
 .ver{font-size:11px;color:var(--muted);white-space:nowrap;align-self:flex-start;margin-top:2px;opacity:.8}
 .brand h1{font-size:20px;color:var(--gold)} .brand .camp{font-size:13px;color:var(--muted)}
 .campsel{font:inherit;font-size:13px;color:var(--muted);background:transparent;border:1px solid transparent;border-radius:4px;padding:0 2px;margin-left:-3px;cursor:pointer;max-width:260px}
@@ -63,7 +70,7 @@ body.gated main>section:not(#gate){display:none!important} body.gated nav.tabs{v
 .cloud{display:flex;align-items:center;gap:6px;font-size:13px}
 .cloud button{font-size:18px;line-height:1;padding:3px 9px;color:var(--gold)}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--muted);display:inline-block}
-.dot.ok{background:var(--good)} .dot.busy{background:var(--gold2)} .dot.err{background:var(--bad)} .dot.ro{background:var(--magic)}
+.dot.ok{background:var(--good)} .dot.busy{background:var(--gold2)} .dot.err{background:var(--bad)}
 /* tabs: flat cards with slightly rounded tops; the active one takes the page colour and joins the content below */
 :root{--tab:#d9c7a0;--tab-ink:#6e5c46}
 :root[data-theme="dark"]{--tab:#2b221b;--tab-ink:#9d8c72}
@@ -185,7 +192,7 @@ tfoot td{font-weight:600;background:var(--panel2)}
 .srow.shead{font-size:12px;color:var(--muted);padding:2px 0 4px;border-bottom:1px solid var(--line2)}
 .srow .c{display:flex;justify-content:center}
 .srow input[type=color]{padding:0;height:31px;width:44px}
-.srow.pl{grid-template-columns:220px 180px 70px 52px minmax(160px,1fr) 104px;min-width:860px}
+.srow.pl{grid-template-columns:200px 150px 64px 52px 104px minmax(160px,1fr) 104px;min-width:920px}
 .srow.lo{grid-template-columns:200px 150px 220px 90px 90px 80px minmax(150px,1fr) 250px;min-width:1320px}
 .rowbtns{display:flex;gap:4px;justify-content:flex-end;align-items:center}
 .itembadge,.rowbtns [data-set=lItem]{min-width:62px;text-align:center;font-size:12px;white-space:nowrap}
@@ -249,6 +256,7 @@ tr.item:hover .qb,.qb:focus{opacity:1}
     <div class="brand"><h1>⚜ Group Inventory</h1><div class="camp" id="campName"></div><select id="campSel" class="campsel hidden" aria-label="Switch campaign" title="Switch campaign"></select></div>
     <div class="spacer"></div>
     <label class="small muted">I am <select id="meSel"></select></label>
+    <span id="online" class="online"></span>
     <div class="cloud"><span class="dot" id="syncDot"></span><span id="syncText" class="muted">Local only</span>
       <button id="syncBtn" class="ghost" title="Live sync status">☁</button></div>
     <button id="themeBtn" class="ghost" title="Toggle parchment / leather theme">☾</button>
@@ -286,8 +294,8 @@ tr.item:hover .qb,.qb:focus{opacity:1}
    Realtime Database (field-level writes, coins/qty as increments).
    ========================================================= */
 const APP_VERSION = 1;          // data format version (not the app build)
-const APP_BUILD = '2.3.1';     // shown top right — bump on every change
-const APP_BUILD_DATE = '2026-10-17';
+const APP_BUILD = '2.4.0';     // shown top right — bump on every change
+const APP_BUILD_DATE = '2026-10-18';
 const LS_DATA = 'groupInvFb_data_v1';
 const LS_PREFS = 'groupInvFb_prefs_v1';
 const COLS = ['players', 'locations', 'items', 'purses', 'ledger', 'log', 'vocab', 'archive'];
@@ -386,12 +394,12 @@ let prefs = {
   arcf: { q: '', reason: '', who: '', dir: -1 },
   setTab: 'chars'
 };
-let dirty = false;
 const sel = new Set();          // selected item ids (bulk actions)
 let openLoc = '';               // container view: holder id currently open
 
 function loadPrefs() {
   try { const p = JSON.parse(localStorage.getItem(LS_PREFS) || 'null'); if (p) prefs = deepMerge(prefs, p); } catch (e) { }
+  ['gh', 'autoSync', 'pollSec'].forEach(k => delete prefs[k]);   // settings from the old GitHub-sync version
 }
 function savePrefs() {
   if (prefs.fb.campaign) prefs.fb.me[prefs.fb.campaign] = prefs.me;   // "I am" is remembered per campaign
@@ -410,7 +418,7 @@ function deepMerge(a, b) {
   return o;
 }
 
-function meName() { const p = getPlayer(prefs.me); return p ? p.name : (prefs.me === 'dm' ? 'DM' : ''); }
+function meName() { if (prefs.me === 'self') return mySelfName(); const p = getPlayer(prefs.me); return p ? p.name : (prefs.me === 'dm' ? 'DM' : ''); }
 function touch(rec) { rec.updatedAt = now(); rec.updatedBy = meName(); return rec; }
 function tombstone(id) { DB.tombstones[id] = now() + 1; }
 
@@ -479,7 +487,7 @@ function removeLocation(id, dest) {
   if (openLoc === id) openLoc = '';
 }
 function commit(opts = {}) {
-  syncLinked(); ensureVocab(); saveLocal(); dirty = true; scheduleSync();
+  syncLinked(); ensureVocab(); saveLocal(); pushChanges();
   if (opts.defer) setTimeout(() => {   // after focus has moved (Tab), re-render and put focus back
     const ae = document.activeElement, sel = selectorFor(ae);
     renderAll(); if (sel) { const el = document.querySelector(sel); if (el) { el.focus(); try { el.select && el.select(); } catch (e) { } } }
@@ -586,14 +594,14 @@ function holderOptions(selected, opts = {}) {
     .map(l => { seen.add(l.id); return opt(l.id, `${LOC_ICON[l.kind] || ''} ${esc(l.name || '(unnamed)')}`, depth) + tree(l.id, depth + 1, seen); }).join('');
   let h = opts.none !== false ? `<option value="">${esc(opts.noneLabel || '— Unassigned —')}</option>` : '';
   if (opts.party) h += `<option value="party" ${selected === 'party' ? 'selected' : ''}>Party Fund</option>`;
-  const pl = sortedPlayers().filter(p => !exclude.has(p.id));
-  if (pl.length) h += '<optgroup label="Characters (and what they carry)">' + pl.map(p => opt(p.id, esc(p.name || '(unnamed)'), 0) + tree(p.id, 1)).join('') + '</optgroup>';
+  const pl = sortedPlayers().filter(p => !exclude.has(p.id) && (!p.retired || opts.retired || p.id === selected));
+  if (pl.length) h += '<optgroup label="Characters (and what they carry)">' + pl.map(p => opt(p.id, esc(p.name || '(unnamed)') + (p.retired ? ' (retired)' : ''), 0) + tree(p.id, 1)).join('') + '</optgroup>';
   const top = tree('', 0);
   if (top) h += '<optgroup label="Locations &amp; vehicles">' + top + '</optgroup>';
   return h;
 }
 function playerOptions(selected, noneLabel = '— none —') {
-  return `<option value="">${esc(noneLabel)}</option>` + sortedPlayers().map(p => `<option value="${esc(p.id)}" ${p.id === selected ? 'selected' : ''}>${esc(p.name || '(unnamed)')}</option>`).join('');
+  return `<option value="">${esc(noneLabel)}</option>` + sortedPlayers().filter(p => !p.retired || p.id === selected).map(p => `<option value="${esc(p.id)}" ${p.id === selected ? 'selected' : ''}>${esc(p.name || '(unnamed)')}</option>`).join('');
 }
 function valueParts(cp) {
   if (cp == null || cp === '') return { v: '', u: 'gp' };
@@ -647,6 +655,23 @@ function groupKey(it) {
   }
 }
 
+/* consumables get a "use 1" button: it goes to the archive as "used up", so it shows in the history */
+const CONSUMABLE_TYPES = new Set(['Potion', 'Scroll', 'Ammunition']);
+const isConsumable = it => !!it && (CONSUMABLE_TYPES.has(it.type) || itemTags(it).some(t => /^consumables?$/i.test(t)) || /\b(potion|scroll|elixir|philter|oil of)\b/i.test(it.name || ''));
+function useOne(it) {
+  if (!it || num(it.qty) <= 0) return;
+  const who = getPlayer(prefs.me) ? prefs.me : '';
+  // a second use soon after adds to the same "used up" entry instead of making a new one each time (arrows!)
+  const ex = num(it.qty) > 1 && DB.archive.find(x => x.archived && x.archived.reason === 'used' && x.archived.srcId === it.id && (x.archived.takenBy || '') === who && now() - num(x.archived.at) < 12 * 3600e3);
+  if (ex) {
+    it.qty = +(num(it.qty) - 1).toFixed(4); touch(it);
+    ex.qty = num(ex.qty) + 1; ex.archived = Object.assign({}, ex.archived, { at: now() }); touch(ex);
+    logItem('archived', ex, { qty: 1, relId: it.id, fromId: it.holderId, text: `used up${who ? ' by ' + holderName(who) : ''} · ${+num(it.qty).toFixed(2)} left at ${holderLabel(it.holderId)}` });
+  } else archiveItem(it, { qty: 1, reason: 'used', takenBy: who });
+  commit();
+  if (drawer.mode === 'view' && drawer.id === it.id) { if (getItem(it.id)) renderDrawer(); else closeDrawer(); }
+  toast(`Used 1 × ${it.name}${getItem(it.id) ? ` — ${+num(it.qty).toFixed(2)} left` : ' — that was the last one'}`);
+}
 function itemBadges(it) {
   let b = '';
   if (it.magical) b += '<span class="badge b-magic" title="Magic item">✦ magic</span>';
@@ -661,7 +686,7 @@ function itemBadges(it) {
 function itemRow(it, cols) {
   const cells = {
     sel: `<td><input type="checkbox" data-sel="${esc(it.id)}" ${sel.has(it.id) ? 'checked' : ''}></td>`,
-    name: `<td><span class="iname">${esc(it.name || '(unnamed)')}</span>${itemBadges(it)}${it.tags ? `<div class="small muted">${esc(it.tags)}</div>` : ''}</td>`,
+    name: `<td><span class="iname">${esc(it.name || '(unnamed)')}</span>${itemBadges(it)}${isConsumable(it) && num(it.qty) > 0 ? `<button class="usebtn" data-use="${esc(it.id)}" title="Use one — it goes to the archive as used up">use 1</button>` : ''}${it.tags ? `<div class="small muted">${esc(it.tags)}</div>` : ''}</td>`,
     qty: `<td class="num qcell"><span class="qwrap"><button class="qb" data-q="-1" data-id="${esc(it.id)}" title="One less">−</button><span class="qn">${esc(+num(it.qty).toFixed(2))}</span><button class="qb" data-q="1" data-id="${esc(it.id)}" title="One more">+</button></span></td>`,
     wEach: `<td class="num muted">${fmtW(num(it.weightEach))}</td>`,
     weight: `<td class="num">${fmtW(itemWeight(it))}</td>`,
@@ -717,12 +742,12 @@ function bulkBar() {
 }
 
 function playerChips() {
-  const pl = sortedPlayers();
+  const pl = sortedPlayers().filter(p => !p.retired || holderCount(p.id) || coinValue(purseOf(p.id)));   // retired ones only while they still hold something
   if (!pl.length) return `<div class="chips"><span class="muted small">No characters yet — add your party in <a href="#" data-goto="set">Settings</a>.</span></div>`;
   return '<div class="chips">' + pl.map(p => {
     const load = holderLoad(p.id), cap = capacityOf(p.id);
-    return `<div class="chip" data-chip="${esc(p.id)}" title="Show what ${esc(p.name)} carries">
-      <span class="pdot" style="background:${esc(p.color || '#9c7020')}"></span><b>${esc(p.name || '(unnamed)')}</b>
+    return `<div class="chip ${p.retired ? 'ret' : ''}" data-chip="${esc(p.id)}" title="Show what ${esc(p.name)} carries${p.retired ? ' (retired)' : ''}">
+      <span class="pdot" style="background:${esc(p.color || '#9c7020')}"></span><b>${esc(p.name || '(unnamed)')}</b>${p.retired ? ' <i class="small">retired</i>' : ''}
       <span class="${cap && load > cap ? 'over' : ''}">${fmtW(load)}${cap ? ' / ' + cap + ' lb' : ''}</span>
 </div>`;
   }).join('') + '</div>';
@@ -739,7 +764,7 @@ function renderInventory() {
     <div class="panel"><div class="toolbar">
       <button class="gold" data-act="newItem">+ Add item</button>
       <input type="search" id="fQ" placeholder="Search name, tag, notes…" value="${esc(f.q)}">
-      <label>Who / where <select id="fHolder"><option value="">All</option><option value="__none" ${f.holder === '__none' ? 'selected' : ''}>Unassigned</option>${holderOptions(f.holder, { none: false })}</select></label>
+      <label>Who / where <select id="fHolder"><option value="">All</option><option value="__none" ${f.holder === '__none' ? 'selected' : ''}>Unassigned</option>${holderOptions(f.holder, { none: false, retired: true })}</select></label>
       <label title="Also show items inside containers carried/stored there"><input type="checkbox" id="fNested" ${f.nested ? 'checked' : ''}> incl. containers</label>
       <label>Type <select id="fType"><option value="">All</option>${types.map(t => `<option ${t === f.type ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></label>
       <label>Rarity <select id="fRarity"><option value="">All</option>${RARITIES.map(r => `<option ${r === f.rarity ? 'selected' : ''}>${r}</option>`).join('')}</select></label>
@@ -805,6 +830,7 @@ function bindInventory() {
     const act = t.closest('[data-act]')?.dataset.act;
     if (act) { handleAct(act, t.closest('[data-act]'), root); return; }
     if (qtyClick(t)) return;
+    const ub = t.closest('[data-use]'); if (ub) { useOne(getItem(ub.dataset.use)); return; }
     const tr = t.closest('tr[data-item]');
     if (tr) openItem(tr.dataset.item);
   });
@@ -924,7 +950,7 @@ function renderView(it) {
     ${sub ? `<div class="vsub">${sub}</div>` : ''}
     <div>${itemBadges(it)}</div>
     <dl class="vlist">
-      ${row('Quantity', `<span class="qtyctl"><button class="small" data-dr="q-" title="One less">−</button><input id="vQty" type="number" min="0" step="any" value="${esc(+num(it.qty).toFixed(2))}"><button class="small" data-dr="q+" title="One more">+</button></span>`)}
+      ${row('Quantity', `<span class="qtyctl"><button class="small" data-dr="q-" title="One less (a correction — use “Use 1” when it's consumed)">−</button><input id="vQty" type="number" min="0" step="any" value="${esc(+num(it.qty).toFixed(2))}"><button class="small" data-dr="q+" title="One more">+</button></span>${num(it.qty) > 0 ? ` <button class="small${isConsumable(it) ? ' gold' : ''}" data-dr="use" title="Consumed — goes to the archive as used up">Use 1</button>` : ''}`)}
       ${row('Weight', num(it.weightEach) ? each(itemWeight(it), num(it.weightEach), fmtW) : '—')}
       ${row('Value', num(it.valueCp) ? each(itemValue(it), num(it.valueCp), fmtCp) : '—')}
       ${row('Carried by', esc(holderLabel(it.holderId)))}
@@ -1153,6 +1179,7 @@ function bindDrawer() {
       }
       case 'openCont': { const lk = DB.locations.find(l => l.itemId === it.id); if (lk) { closeDrawer(); openLoc = lk.id; showTab('loc'); } break; }
       case 'dup': { const n = Object.assign({}, it, { id: uid('it'), createdAt: now() }); touch(n); DB.items.push(n); logItem('added', n, { toId: n.holderId, text: 'duplicated, at ' + holderLabel(n.holderId) }); commit(); openItem(n.id); toast('Duplicated'); break; }
+      case 'use': if (!drawer.arc && drawer.mode === 'view') useOne(it); break;
       case 'archive': {
         if (drawer.arc || drawer.mode === 'new') return;
         const o = { qty: $('#arQty', d) ? num($('#arQty', d).value) : num(it.qty), reason: $('#arReason', d).value, takenBy: $('#arWho', d).value,
@@ -1544,8 +1571,9 @@ function ensurePurse(holderId) {
   if (!p) { p = { id: 'cur_' + holderId, holderId, pp: 0, gp: 0, ep: 0, sp: 0, cp: 0 }; touch(p); DB.purses.push(p); }
   return p;
 }
+const purseChars = () => sortedPlayers().filter(p => !p.retired || coinValue(purseOf(p.id)));
 function purseRows() {
-  const ids = ['party', ...sortedPlayers().map(p => p.id), ...sortedLocs().filter(l => purseOf(l.id)).map(l => l.id)];
+  const ids = ['party', ...purseChars().map(p => p.id), ...sortedLocs().filter(l => purseOf(l.id)).map(l => l.id)];
   return ids;
 }
 function coinStr(o) { return COINS.filter(c => int(o[c])).map(c => `${int(o[c])} ${c}`).join(', ') || '0'; }
@@ -1573,8 +1601,8 @@ function renderCurrency() {
   <div class="settings-grid">
   <div class="panel"><h2>Transaction</h2>
     <div class="fgrid">
-      <label class="f">From <select id="txFrom"><option value="">— Outside (loot, reward, sale) —</option><option value="party">Party Fund</option>${sortedPlayers().map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}${sortedLocs().filter(l => purseOf(l.id)).map(l => `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join('')}</select></label>
-      <label class="f">To <select id="txTo"><option value="party">Party Fund</option>${sortedPlayers().map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}${sortedLocs().filter(l => purseOf(l.id)).map(l => `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join('')}<option value="">— Outside (spent, lost) —</option></select></label>
+      <label class="f">From <select id="txFrom"><option value="">— Outside (loot, reward, sale) —</option><option value="party">Party Fund</option>${purseChars().map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}${sortedLocs().filter(l => purseOf(l.id)).map(l => `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join('')}</select></label>
+      <label class="f">To <select id="txTo"><option value="party">Party Fund</option>${activePlayers().map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}${sortedLocs().filter(l => purseOf(l.id)).map(l => `<option value="${esc(l.id)}">${esc(l.name)}</option>`).join('')}<option value="">— Outside (spent, lost) —</option></select></label>
       <div class="full inl coins">${COINS.map(c => `<label class="f"><span class="coin-h c-${c}">${c}</span><input type="number" min="0" step="1" data-tx="${c}" placeholder="0"></label>`).join('')}</div>
       <label class="f full">Note <input id="txNote" placeholder="e.g. Sold the ogre's greataxe, paid the inn…"></label>
       <label class="full checks"><label><input type="checkbox" id="txChange" checked> Make change if the exact coins are missing (pays by value, change in gp/sp/cp)</label></label>
@@ -1583,7 +1611,7 @@ function renderCurrency() {
   </div>
   <div class="panel"><h2>Split the Party Fund</h2>
     <p class="help">Divides each coin type evenly between the chosen characters; the remainder stays in the Party Fund.</p>
-    <div class="checks">${sortedPlayers().map(p => `<label><input type="checkbox" data-split="${esc(p.id)}" checked> ${esc(p.name)}</label>`).join('') || '<span class="muted">Add characters in Settings first.</span>'}</div>
+    <div class="checks">${activePlayers().map(p => `<label><input type="checkbox" data-split="${esc(p.id)}" checked> ${esc(p.name)}</label>`).join('') || '<span class="muted">Add characters in Settings first.</span>'}</div>
     <div class="toolbar" style="margin-top:10px"><button data-cur="split" ${DB.players.length ? '' : 'disabled'}>Split now</button><span class="small muted">Party Fund: ${coinStr(purseOf('party') || {})}</span></div>
     <h3 class="cinzel" style="margin:16px 0 6px;color:var(--gold);font-size:14px">Party wealth</h3>
     <div class="stats"><span><b>Coins</b>${fmtGp(totalCoins)}</span><span><b>Items</b>${fmtCp(totalItems)}</span><span><b>Total</b>${fmtGp(totalCoins + totalItems)}</span></div>
@@ -1704,18 +1732,21 @@ function renderSettings() {
   <div class="subpage">
   ${st === 'chars' ? `
   <div class="panel"><h2>Characters</h2>
-    <p class="help">These names appear in "Carried by" and the currency purses. STR score is used for carrying capacity (STR × 15 lb).</p>
-    <div class="sgrid"><div class="srow pl shead"><span>Character name</span><span>Player</span><span>STR</span><span>Colour</span><span>Notes</span><span></span></div>
-    ${pl.map((p, i) => `<div class="srow pl">
+    <p class="help">These names appear in "Carried by" and the currency purses. STR score is used for carrying capacity (STR × 15 lb).
+    <b>Retired</b> (dead, left the party…) hides a character from the lists but keeps everything about it — log, archive and what it still carries.</p>
+    <div class="sgrid"><div class="srow pl shead"><span>Character name</span><span>Player</span><span>STR</span><span>Colour</span><span>Status</span><span>Notes</span><span></span></div>
+    ${pl.map((p, i) => `<div class="srow pl ${p.retired ? 'ret' : ''}">
       <input aria-label="Character name" data-pid="${esc(p.id)}" data-k="name" value="${esc(p.name)}">
       <input aria-label="Player" data-pid="${esc(p.id)}" data-k="playerName" value="${esc(p.playerName || '')}">
       <input aria-label="STR" type="number" min="1" max="30" data-pid="${esc(p.id)}" data-k="str" value="${esc(p.str ?? '')}">
       <input aria-label="Colour" type="color" data-pid="${esc(p.id)}" data-k="color" value="${esc(p.color || '#9c7020')}">
-      <input aria-label="Notes" data-pid="${esc(p.id)}" data-k="notes" value="${esc(p.notes || '')}">
+      <select aria-label="Status" data-pid="${esc(p.id)}" data-k="retired"><option value="">Active</option><option value="1" ${p.retired ? 'selected' : ''}>Retired</option></select>
+      <input aria-label="Notes" data-pid="${esc(p.id)}" data-k="notes" value="${esc(p.notes || '')}" placeholder="${p.retired ? 'e.g. died in session 12' : ''}">
       <div class="rowbtns"><button class="small" data-set="pUp" data-id="${esc(p.id)}" ${i ? '' : 'disabled'} title="Move up">▲</button><button class="small" data-set="pDown" data-id="${esc(p.id)}" ${i < pl.length - 1 ? '' : 'disabled'} title="Move down">▼</button><button class="small danger" data-set="pDel" data-id="${esc(p.id)}" title="Delete">✕</button></div>
     </div>`).join('') || '<p class="muted">No characters yet.</p>'}</div>
     <div class="toolbar" style="margin-top:8px"><button class="gold" data-set="pAdd">+ Add character</button></div>
   </div>
+  ${rosterSection()}
   ` : ''}${st === 'locs' ? `
 
   <div class="panel"><h2>Locations, containers &amp; vehicles</h2>
@@ -1749,10 +1780,10 @@ function renderSettings() {
 
   <div class="panel"><h2>This browser</h2>
     <div class="fgrid">
-      <label class="f">I am <select id="setMe">${playerOptions(prefs.me, '— choose —')}<option value="dm" ${prefs.me === 'dm' ? 'selected' : ''}>DM</option></select></label>
+      <label class="f">I am <select id="setMe">${meOptions('— choose —')}</select></label>
       <label class="f">Theme <select id="setTheme"><option value="light" ${prefs.theme !== 'dark' ? 'selected' : ''}>Parchment</option><option value="dark" ${prefs.theme === 'dark' ? 'selected' : ''}>Dark leather</option></select></label>
     </div>
-    <p class="help">"I am" is written on changes and ledger entries so the group can see who did what.</p>
+    <p class="help">"I am" is written on changes and ledger entries so the group can see who did what. Pick one of your characters, or yourself.</p>
   </div>
   </div>
   ` : ''}${st === 'sync' ? `
@@ -1778,7 +1809,7 @@ function renderSettings() {
     <div class="toolbar"><input id="fbName" placeholder="name, e.g. Curse of Strahd" autocomplete="off" style="flex:1;min-width:200px">
       <label class="small"><input type="checkbox" id="fbCopy" ${prefs.fb.campaign ? '' : 'checked'}> start with a copy of the data shown now</label>
       <button data-set="fbCreate">Create</button></div>` : ''}
-    <div class="small muted" id="ghMsg" style="margin-top:6px"></div>
+    <div class="small muted" id="fbMsg" style="margin-top:6px"></div>
   </div>
 
   ` : ''}${st === 'data' ? `
@@ -1811,6 +1842,16 @@ function bindSettings() {
     if (t.dataset.pid) {
       const p = getPlayer(t.dataset.pid); if (!p) return;
       if (t.dataset.k === 'name' && p.name !== t.value) logEvent('settings', { text: `character renamed: ${p.name || '(unnamed)'} → ${t.value}` });
+      if (t.dataset.k === 'retired') {
+        p.retired = t.value === '1'; touch(p);
+        if (p.retired && fbRole === 'owner') Object.entries(fbRoster).forEach(([ek, r]) => {   // a retired character can't be anyone's active one
+          if (r.active !== p.id) return;
+          const next = Object.keys(r.chars || {}).find(id => id !== p.id && getPlayer(id) && !getPlayer(id).retired) || '';
+          FB.set(rosterRef(ek, 'active'), next).catch(() => { });
+        });
+        logEvent('settings', { text: `${p.name || 'character'} ${p.retired ? 'retired' : 'is active again'}${p.retired && holderCount(p.id) ? ` (still carries ${holderCount(p.id)} item${holderCount(p.id) === 1 ? '' : 's'})` : ''}` });
+        commit(); return;
+      }
       p[t.dataset.k] = t.dataset.k === 'str' ? (t.value === '' ? null : int(t.value)) : t.value; touch(p); commit({ defer: true });
     } else if (t.dataset.lid) {
       const l = getLoc(t.dataset.lid); if (!l) return; const k = t.dataset.k;
@@ -1826,7 +1867,7 @@ function bindSettings() {
     } else if (t.dataset.meta) {
       const k = t.dataset.meta;
       DB.meta[k] = k === 'coinWeight' ? t.checked : (k === 'name' ? t.value : num(t.value)); touch(DB.meta); commit({ defer: true });
-    } else if (t.id === 'setMe') { prefs.me = t.value; savePrefs(); renderHeader(); }
+    } else if (t.id === 'setMe') { setMe(t.value); }
     else if (t.id === 'setTheme') { prefs.theme = t.value; savePrefs(); applyTheme(); }
     else if (t.id === 'importFile') importFile(t.files[0]);
   });
@@ -1888,31 +1929,32 @@ function bindSettings() {
       }
       case 'fbJoin': {
         const code = fbCleanCode($('#fbCode').value);
-        if (!code) { $('#ghMsg').textContent = 'Enter a campaign code (at least 8 letters/digits).'; return; }
-        $('#ghMsg').textContent = 'Connecting…';
-        fbConnect(code).then(() => { if (fbRef) toast('Opened ' + (fbEntry(code)?.name || code)); }, e => { $('#ghMsg') && ($('#ghMsg').textContent = e.message); });
+        if (!code) { $('#fbMsg').textContent = 'Enter a campaign code (at least 8 letters/digits).'; return; }
+        $('#fbMsg').textContent = 'Connecting…';
+        fbConnect(code).then(() => { if (fbRef) toast('Opened ' + (fbEntry(code)?.name || code)); }, e => { $('#fbMsg') && ($('#fbMsg').textContent = e.message); });
         break;
       }
-      case 'fbOpen': fbConnect(b.dataset.code).catch(e => { $('#ghMsg') && ($('#ghMsg').textContent = e.message); }); break;
+      case 'fbOpen': fbConnect(b.dataset.code).catch(e => { $('#fbMsg') && ($('#fbMsg').textContent = e.message); }); break;
       case 'fbCreate': {
         const name = $('#fbName').value.trim();
         const copy = $('#fbCopy').checked;
-        if (!name && !copy) { $('#ghMsg').textContent = 'Give the new campaign a name.'; $('#fbName').focus(); return; }
+        if (!name && !copy) { $('#fbMsg').textContent = 'Give the new campaign a name.'; $('#fbName').focus(); return; }
         const data = copy ? normalizeDB(clone(DB)) : seedDB();
         if (name) { data.meta.name = name; data.meta.updatedAt = now(); }
         if (!copy) data.log = [];
-        $('#ghMsg').textContent = 'Creating…';
-        fbConnect(fbNewCode(data.meta.name), { create: true, data }).then(() => toast('Campaign created — copy the share link for your players'), e => { $('#ghMsg') && ($('#ghMsg').textContent = e.message); });
+        $('#fbMsg').textContent = 'Creating…';
+        fbConnect(fbNewCode(data.meta.name), { create: true, data }).then(() => toast('Campaign created — copy the share link for your players'), e => { $('#fbMsg') && ($('#fbMsg').textContent = e.message); });
         break;
       }
       case 'fbShare': {
         const u = new URL(location.href); u.search = ''; u.hash = '';
         u.searchParams.set('c', prefs.fb.campaign);
         const s = u.toString();
-        (navigator.clipboard ? navigator.clipboard.writeText(s) : Promise.reject()).then(() => toast('Share link copied'), () => { $('#ghMsg').textContent = s; });
+        (navigator.clipboard ? navigator.clipboard.writeText(s) : Promise.reject()).then(() => toast('Share link copied'), () => { $('#fbMsg').textContent = s; });
         break;
       }
-      case 'fbSignIn': fbSignIn().catch(e => { $('#ghMsg') && ($('#ghMsg').textContent = e.message); }); break;
+      case 'goRoster': prefs.setTab = 'chars'; renderSettings(); setTimeout(() => $('#rosEmail')?.scrollIntoView({ block: 'center' }), 30); break;
+      case 'fbSignIn': fbSignIn().catch(e => { $('#fbMsg') && ($('#fbMsg').textContent = e.message); }); break;
       case 'fbSignOut': fbSignOut().then(() => renderSettings(), fbShowErr); break;
       case 'fbApprove': b.disabled = true; fbApprove(b.dataset.uid).then(() => toast('Access given'), fbShowErr); break;
       case 'fbDecline': if (!armed(b, '', 'Decline?')) return; fbDecline(b.dataset.uid).catch(fbShowErr); break;
@@ -1983,9 +2025,13 @@ function importFile(file) {
       let matched = 0;
       if (!$('#importMerge') || $('#importMerge').checked) { matched = matchByName(d); DB = normalizeDB(mergeDB(DB, d)); }
       else {
-        const tomb = Object.assign({}, DB.tombstones); COLS.forEach(c => DB[c].forEach(x => { if (!d[c].some(y => y.id === x.id)) tomb[x.id] = now() + 1; }));
-        const t = now(); COLS.forEach(c => d[c].forEach(x => x.updatedAt = t)); d.meta.updatedAt = t;
-        d.tombstones = Object.assign(tomb, d.tombstones); DB = d;
+        // replace: everything not in the file is removed. An id can sit in a different list in the file
+        // (e.g. archived here, active in the backup), so only ids missing from the whole file get a tombstone.
+        const keep = new Set(COLS.flatMap(c => d[c].map(y => y.id)));
+        const tomb = Object.assign({}, DB.tombstones, d.tombstones); COLS.forEach(c => DB[c].forEach(x => { if (!keep.has(x.id)) tomb[x.id] = now() + 1; }));
+        keep.forEach(id => delete tomb[id]);
+        const t = now() + 2; COLS.forEach(c => d[c].forEach(x => x.updatedAt = t)); d.meta.updatedAt = t;
+        d.tombstones = tomb; DB = d;
       }
       const n = d.items.length;
       logEvent('settings', { text: `data imported from file (${n} item${n === 1 ? '' : 's'}${matched ? `, ${matched} character/place name${matched === 1 ? '' : 's'} matched to existing` : ''})` });
@@ -2201,7 +2247,7 @@ const FB_CONFIG = {
   messagingSenderId: '499715115328',
   appId: '1:499715115328:web:7b53d65ffcf81b2e6792a5'
 };
-const INC_FIELDS = { items: ['qty'], purses: COINS };
+const INC_FIELDS = { items: ['qty'], purses: COINS, archive: ['qty'] };
 
 let FB = null, fbRef = null, fbUnsub = null, fbConnUnsub = null;
 let BASE = null, fbLatest, fbApplyT, fbOnline = false, fbPending = 0, fbLastErr = '';
@@ -2290,17 +2336,17 @@ function fbPush() {
   if (!fbRef || !BASE || !FB) return false;
   const cur = clone(DB), up = fbDiff(BASE, cur);
   BASE = cur;
-  if (!Object.keys(up).length) { dirty = false; idleStatus(); return false; }
+  if (!Object.keys(up).length) { idleStatus(); return false; }
   fbPending++; idleStatus();
   if (up['meta/name'] !== undefined && fbRole === 'owner' && DB.meta.name) {
     FB.set(fbR(`campaigns/${prefs.fb.campaign}/name`), DB.meta.name).catch(() => { });
     FB.set(fbR(`users/${fbUser.uid}/campaigns/${prefs.fb.campaign}`), DB.meta.name).catch(() => { });
   }
   FB.update(fbRef, up).then(() => { fbLastErr = ''; }, e => { console.error(e); fbLastErr = e.code === 'PERMISSION_DENIED' ? 'Not allowed — check database rules' : e.message; })
-    .finally(() => { fbPending--; if (!fbPending) dirty = false; idleStatus(); });
+    .finally(() => { fbPending--; idleStatus(); });
   return true;
 }
-function scheduleSync() { if (!fbPush()) idleStatus(); }
+function pushChanges() { if (!fbPush()) idleStatus(); }
 
 function fbOnValue(snap) { fbLatest = snap.val(); clearTimeout(fbApplyT); fbApplyT = setTimeout(fbApply, 0); }
 function fbApply() {
@@ -2314,6 +2360,7 @@ function fbApply() {
   const ent = fbEntry(prefs.fb.campaign);
   if (ent && DB.meta.name && ent.name !== DB.meta.name) { ent.name = DB.meta.name; savePrefs(); renderHeader(); }
   if (canon(DB) !== before) refreshAfterRemote();
+  fbResolveMe();
   idleStatus();
 }
 
@@ -2459,7 +2506,8 @@ function fbApprove(uid) {
   return FB.update(fbR(''), {
     [`campaigns/${code}/members/${uid}`]: { name: r.name || '', email: r.email || '', at: now(), by: (fbUser && fbUser.email) || '' },
     [`campaigns/${code}/requests/${uid}`]: null,
-    [`users/${uid}/campaigns/${code}`]: fbEntry(code)?.name || DB.meta.name || code
+    [`users/${uid}/campaigns/${code}`]: fbEntry(code)?.name || DB.meta.name || code,
+    ...(r.email && fbKeyOk(emailKey(r.email)) && !fbRoster[emailKey(r.email)] ? { [`campaigns/${code}/roster/${emailKey(r.email)}`]: { name: r.name || r.email, email: String(r.email).toLowerCase(), chars: {}, active: '', at: now() } } : {})
   }).then(() => { logEvent('settings', { text: `${r.name || r.email || 'a player'} was given access` }); commit(); });
 }
 function fbDecline(uid) { return FB.set(fbR(`campaigns/${prefs.fb.campaign}/requests/${uid}`), null); }
@@ -2477,9 +2525,158 @@ function membersSection() {
     ${reqs.length ? `<div class="camplist">${reqs.map(([uid, r]) => `<div class="camprow"><span class="nm"><b>${esc(r.name || '(no name)')}</b> <code>${esc(r.email || '')}</code> <span class="small muted">· ${esc(fmtTime(r.at))}</span></span>
       <button class="small gold" data-set="fbApprove" data-uid="${esc(uid)}">Approve</button><button class="small" data-set="fbDecline" data-uid="${esc(uid)}">Decline</button></div>`).join('')}</div>`
       : '<p class="small muted">No one is waiting. New players open the share link, sign in with Google, and show up here.</p>'}
-    <h3 class="subh">Players with access · ${mems.length}</h3>
-    <div class="camplist">${mems.map(([uid, m]) => `<div class="camprow"><span class="nm"><b>${esc(m.name || '(no name)')}</b> <code>${esc(m.email || '')}</code>${uid === me ? ' <span class="small muted">· you (DM)</span>' : ''}</span>
-      ${uid === me ? '' : `<button class="small" data-set="fbRemove" data-uid="${esc(uid)}" title="They can ask again, but you have to approve them">Remove access</button>`}</div>`).join('')}</div>`;
+    <p class="small muted" style="margin-top:10px">Players, their Google e-mails and characters: <a class="arclink" data-set="goRoster">Settings → Characters → Players &amp; logins</a> (${mems.length} signed in).</p>`;
+}
+
+/* ---------- players & logins (roster), "I am", who's online ----------
+   campaigns/<code>/roster/<emailKey> = { name, email, chars: { <characterId>: true }, active: <characterId> | '' }
+   Written by the DM only. A Google account whose e-mail is on the roster gets in without approval,
+   and its "I am" choices are limited to its own characters (plus "myself"). */
+let fbRoster = {}, fbOnlineMap = {}, fbPresRef = null, fbRosterLoaded = false, fbMembersLoaded = false;
+const emailKey = e => String(e || '').trim().toLowerCase().replace(/\./g, ',');
+const myRoster = () => (fbUser && fbRoster[emailKey(fbUser.email)]) || null;
+const mySelfName = () => (myRoster() && myRoster().name) || (fbUser && fbUser.displayName) || 'Me';
+const isRetired = p => !!(p && p.retired);
+const activePlayers = () => sortedPlayers().filter(p => !p.retired);
+/* characters this browser may pick in "I am": null = no limit */
+function myChars() {
+  if (!fbRef || fbRole === 'owner') return null;
+  const r = myRoster(); if (!r) return null;
+  return Object.keys(r.chars || {}).filter(id => getPlayer(id));
+}
+function meValid(v) {
+  if (v === 'self') return !!fbUser;
+  if (v === 'dm') return !fbRef || fbRole === 'owner';
+  const p = getPlayer(v); if (!p || p.retired) return false;
+  const mine = myChars(); return !mine || mine.includes(v);
+}
+function meOptions(emptyLabel = '— who? —') {
+  const mine = myChars(), r = myRoster();
+  const list = mine ? mine.map(getPlayer).filter(p => p && !p.retired) : activePlayers();
+  let h = `<option value="">${esc(emptyLabel)}</option>`;
+  if (fbUser && fbRef) h += `<option value="self" ${prefs.me === 'self' ? 'selected' : ''}>${esc(mySelfName())} (myself)</option>`;
+  h += list.map(p => `<option value="${esc(p.id)}" ${p.id === prefs.me ? 'selected' : ''}>${esc(p.name || '(unnamed)')}${r && r.active === p.id ? ' ★' : ''}</option>`).join('');
+  if (!fbRef || fbRole === 'owner') h += `<option value="dm" ${prefs.me === 'dm' ? 'selected' : ''}>DM</option>`;
+  return h;
+}
+function setMe(v) { prefs.me = v; savePrefs(); renderHeader(); fbPresenceUpdate(); if (prefs.tab === 'set') renderSettings(); }
+/* pick a sensible "I am" once the campaign data and roster are in */
+function fbResolveMe() {
+  if (!fbRef || !BASE) return;
+  if (prefs.me && meValid(prefs.me)) return;
+  const r = myRoster();
+  let next = '';
+  if (fbRole === 'owner') next = 'dm';
+  else if (r) next = (r.active && meValid(r.active)) ? r.active : (Object.keys(r.chars || {}).find(meValid) || 'self');
+  else if (fbUser) next = 'self';
+  if (next !== prefs.me) { prefs.me = next; savePrefs(); renderHeader(); fbPresenceUpdate(); }
+}
+
+/* DM: players who got in before the roster existed get a roster entry, so they can be linked to characters */
+function fbRosterBackfill() {
+  if (fbRole !== 'owner' || !fbRosterLoaded || !fbMembersLoaded) return;
+  const code = prefs.fb.campaign, me = fbUser.uid, up = {};
+  Object.entries(fbMembers).forEach(([uid, m]) => {
+    if (uid === me || !m || !m.email) return;
+    const ek = emailKey(m.email); if (!fbKeyOk(ek) || fbRoster[ek]) return;
+    up[`campaigns/${code}/roster/${ek}`] = { name: m.name || m.email, email: String(m.email).toLowerCase(), chars: {}, active: '', at: now() };
+  });
+  if (Object.keys(up).length) FB.update(fbR(''), up).catch(e => console.warn(e));
+}
+const rosterRef = (ek, sub) => fbR(`campaigns/${prefs.fb.campaign}/roster/${ek}${sub ? '/' + sub : ''}`);
+function rosterAdd(name, email, charId) {
+  email = String(email || '').trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return Promise.reject(new Error('That is not a valid e-mail address'));
+  const ek = emailKey(email); if (!fbKeyOk(ek)) return Promise.reject(new Error('That e-mail contains characters Firebase can\'t store'));
+  if (fbRoster[ek]) return Promise.reject(new Error('That e-mail is already on the list'));
+  const entry = { name: name.trim() || email.split('@')[0], email, chars: charId ? { [charId]: true } : {}, active: charId || '', at: now() };
+  return FB.set(rosterRef(ek), entry).then(() => { logEvent('settings', { text: `${entry.name} can now sign in (${email})` }); commit(); });
+}
+function rosterRemove(ek) {
+  const r = fbRoster[ek] || {}, code = prefs.fb.campaign, up = { [`campaigns/${code}/roster/${ek}`]: null };
+  Object.entries(fbMembers).forEach(([uid, m]) => {
+    if (uid !== fbUser.uid && m && emailKey(m.email) === ek) { up[`campaigns/${code}/members/${uid}`] = null; up[`users/${uid}/campaigns/${code}`] = null; }
+  });
+  return FB.update(fbR(''), up).then(() => { logEvent('settings', { text: `${r.name || r.email || 'a player'} no longer has access` }); commit(); });
+}
+function rosterSection() {
+  if (!fbRef || fbRole !== 'owner') return fbRef ? '' : `<div class="panel"><h2>Players &amp; logins</h2><p class="help">Open a shared campaign as DM (Settings → Live sync) to add your players' Google e-mails here.</p></div>`;
+  const rows = Object.entries(fbRoster).sort((a, b) => String(a[1].name).localeCompare(String(b[1].name)));
+  const joined = ek => Object.values(fbMembers).some(m => m && emailKey(m.email) === ek);
+  return `<div class="panel"><h2>Players &amp; logins</h2>
+    <p class="help">Put a player's Google e-mail here and they get in as soon as they sign in — no approval needed. Link the characters they play; ★ is the one "I am" starts on.
+    Players can always choose themselves ("myself") instead of a character. Only you (the DM) can change this list.</p>
+    <div class="sgrid"><div class="srow ros shead"><span>Player</span><span>Google e-mail</span><span>Characters (★ = active)</span><span>Status</span><span></span></div>
+    ${rows.map(([ek, r]) => { const ch = Object.keys(r.chars || {}).filter(id => getPlayer(id));
+      const free = sortedPlayers().filter(p => !ch.includes(p.id) && !p.retired);
+      return `<div class="srow ros">
+      <input aria-label="Player name" data-rk="${esc(ek)}" value="${esc(r.name || '')}">
+      <code class="small" title="${esc(r.email || '')}">${esc(r.email || '')}</code>
+      <div class="rchars">${ch.map(id => { const p = getPlayer(id); return `<span class="rchip ${r.active === id ? 'on' : ''} ${p.retired ? 'ret' : ''}"><button class="rstar" data-ros="star" data-ek="${esc(ek)}" data-pid="${esc(id)}" title="${r.active === id ? 'Active character' : 'Make this the active character'}">★</button>${esc(p.name || '(unnamed)')}${p.retired ? ' <i>(retired)</i>' : ''}<button class="rx" data-ros="unchar" data-ek="${esc(ek)}" data-pid="${esc(id)}" title="Unlink">✕</button></span>`; }).join('')}
+        ${free.length ? `<select class="small" data-rosadd="${esc(ek)}"><option value="">+ character</option>${free.map(p => `<option value="${esc(p.id)}">${esc(p.name || '(unnamed)')}</option>`).join('')}</select>` : ''}</div>
+      <span class="small ${joined(ek) ? '' : 'muted'}">${joined(ek) ? '✓ signed in' : 'not signed in yet'}</span>
+      <div class="rowbtns"><button class="small danger" data-ros="remove" data-ek="${esc(ek)}" title="Removes their access">✕</button></div>
+    </div>`; }).join('') || '<p class="muted small">No players yet.</p>'}</div>
+    <div class="toolbar" style="margin-top:8px"><input id="rosName" placeholder="Player name" style="width:150px"><input id="rosEmail" placeholder="their.name@gmail.com" style="flex:1;min-width:200px" autocomplete="off">
+      <select id="rosChar"><option value="">— character (optional) —</option>${activePlayers().map(p => `<option value="${esc(p.id)}">${esc(p.name || '(unnamed)')}</option>`).join('')}</select>
+      <button class="gold" data-ros="add">+ Add player</button></div>
+    <div class="small muted" id="rosMsg" style="margin-top:4px"></div></div>`;
+}
+function bindRoster() {
+  const root = $('#tab-set');
+  const msg = e => { const m = $('#rosMsg'); if (m) m.textContent = e.message || String(e); else toast(e.message || String(e)); };
+  root.addEventListener('click', e => {
+    const b = e.target.closest('[data-ros]'); if (!b || fbRole !== 'owner') return;
+    const ek = b.dataset.ek, r = ek && fbRoster[ek], pid = b.dataset.pid;
+    switch (b.dataset.ros) {
+      case 'add': rosterAdd($('#rosName').value, $('#rosEmail').value, $('#rosChar').value).then(() => toast('Player added'), msg); break;
+      case 'star': if (r) FB.set(rosterRef(ek, 'active'), r.active === pid ? '' : pid).catch(msg); break;
+      case 'unchar': if (r) { const up = { [`chars/${pid}`]: null }; if (r.active === pid) up.active = Object.keys(r.chars || {}).find(id => id !== pid && getPlayer(id) && !getPlayer(id).retired) || ''; FB.update(rosterRef(ek), up).catch(msg); } break;
+      case 'remove': if (!armed(b, '', 'Remove access?')) return; rosterRemove(ek).then(() => toast('Access removed'), msg); break;
+    }
+  });
+  root.addEventListener('change', e => {
+    const t = e.target;
+    if (t.dataset.rosadd !== undefined && t.value && fbRole === 'owner') {
+      const ek = t.dataset.rosadd, r = fbRoster[ek] || {}, up = { [`chars/${t.value}`]: true };
+      if (!r.active || !getPlayer(r.active) || getPlayer(r.active).retired) up.active = t.value;
+      FB.update(rosterRef(ek), up).catch(msg);
+    } else if (t.dataset.rk !== undefined && fbRole === 'owner') {
+      FB.set(rosterRef(t.dataset.rk, 'name'), t.value.trim()).catch(msg);
+    }
+  });
+}
+
+/* ---------- who's online ---------- */
+function fbPresenceStart(code) {
+  const uid = fbUser.uid, conn = Math.random().toString(36).slice(2, 10);
+  fbPresRef = fbR(`campaigns/${code}/presence/${uid}/${conn}`);
+  fbWatch.push(FB.onValue(fbR('.info/connected'), s => {
+    if (!s.val() || !fbPresRef) return;
+    FB.onDisconnect(fbPresRef).remove().then(fbPresenceUpdate, () => { });
+  }, () => { }));
+  fbWatch.push(FB.onValue(fbR(`campaigns/${code}/presence`), s => { fbOnlineMap = s.val() || {}; renderOnline(); }, () => { }));
+}
+function fbPresenceUpdate() {
+  if (!fbPresRef || !fbUser) return;
+  FB.set(fbPresRef, { name: mySelfName(), as: meName() || '', at: FB.serverTimestamp() }).catch(() => { });
+}
+function fbPresenceStop() {
+  if (fbPresRef) { const r = fbPresRef; fbPresRef = null; FB.remove(r).catch(() => { }); }
+  fbOnlineMap = {}; renderOnline();
+}
+function renderOnline() {
+  const el = $('#online'); if (!el) return;
+  const me = fbUser ? fbUser.uid : '', cut = Date.now() - 12 * 3600e3;
+  const people = Object.entries(fbOnlineMap).filter(([uid]) => uid !== me).map(([, conns]) => {
+    const v = Object.values(conns || {}).filter(c => c && (typeof c.at !== 'number' || c.at > cut)).sort((a, b) => (b.at || 0) - (a.at || 0))[0];
+    return v || null;
+  }).filter(Boolean).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  if (!people.length) { el.innerHTML = ''; el.title = ''; return; }
+  const colorOf = v => { const p = DB.players.find(x => x.name && x.name === v.as); return p ? p.color || '#9c7020' : 'var(--line2)'; };
+  const label = v => v.as && v.as !== v.name ? `${v.name} — as ${v.as}` : v.name;
+  el.innerHTML = people.slice(0, 6).map(v => `<span class="odot" style="background:${esc(colorOf(v))}">${esc(String(v.name || '?').trim().charAt(0).toUpperCase())}</span>`).join('') + (people.length > 6 ? `<span class="small muted">+${people.length - 6}</span>` : '');
+  el.title = 'Online now: ' + people.map(label).join(', ');
 }
 
 const fbEntry = code => prefs.fb.list.find(c => c.code === code);
@@ -2540,6 +2737,14 @@ async function fbConnect(code, opts = {}) {
     return;
   }
   fbRemember(code, name); savePrefs(); renderHeader();
+  if (!member && fbUser.emailVerified) {               // on the DM's list of players? then straight in, no approval
+    let ros = null;
+    try { ros = (await FB.get(fbR(`campaigns/${code}/roster/${emailKey(fbUser.email)}`))).val(); } catch (e) { }
+    if (ros) {
+      try { await FB.update(fbR(''), { [`campaigns/${code}/members/${uid}`]: fbMe(), [`users/${uid}/campaigns/${code}`]: name || code }); member = true; }
+      catch (e) { console.warn('self-join failed', e); }
+    }
+  }
   if (!member) {
     let req = null;
     try { req = (await FB.get(fbR(`campaigns/${code}/requests/${uid}`))).val(); } catch (e) { }
@@ -2558,10 +2763,14 @@ async function fbConnect(code, opts = {}) {
   fbWatch.push(FB.onValue(fbR(`campaigns/${code}/members/${uid}`), s => {
     if (!s.exists() && fbRef) { fbDisconnect(); prefs.fb.asked[code] = true; savePrefs(); fbSetGate({ state: 'removed', code, name }); }
   }, () => { }));
+  const updSet = () => { renderHeader(); if (prefs.tab === 'set' && (prefs.setTab === 'sync' || prefs.setTab === 'chars')) renderSettings(); };
+  fbWatch.push(FB.onValue(fbR(`campaigns/${code}/roster`), s => {
+    fbRoster = s.val() || {}; fbRosterLoaded = true; fbRosterBackfill(); fbResolveMe(); fbPresenceUpdate(); updSet();
+  }, () => { fbRoster = {}; }));
+  fbPresenceStart(code);
   if (fbRole === 'owner') {
-    const upd = () => { renderHeader(); if (prefs.tab === 'set' && prefs.setTab === 'sync') renderSettings(); };
-    fbWatch.push(FB.onValue(fbR(`campaigns/${code}/requests`), s => { fbReqs = s.val() || {}; upd(); }, () => { }));
-    fbWatch.push(FB.onValue(fbR(`campaigns/${code}/members`), s => { fbMembers = s.val() || {}; upd(); }, () => { }));
+    fbWatch.push(FB.onValue(fbR(`campaigns/${code}/requests`), s => { fbReqs = s.val() || {}; updSet(); }, () => { }));
+    fbWatch.push(FB.onValue(fbR(`campaigns/${code}/members`), s => { fbMembers = s.val() || {}; fbMembersLoaded = true; fbRosterBackfill(); updSet(); }, () => { }));
   } else {
     FB.get(fbR(`campaigns/${code}/members`)).then(s => { fbMembers = s.val() || {}; }, () => { fbMembers = {}; });
   }
@@ -2585,7 +2794,9 @@ function fbForget(code) {
 }
 function fbDisconnect() {
   if (fbUnsub) fbUnsub(); if (fbConnUnsub) fbConnUnsub();
+  fbPresenceStop();
   fbUnwatch();
+  fbRoster = {}; fbRosterLoaded = fbMembersLoaded = false;
   fbUnsub = fbConnUnsub = null; fbRef = null; BASE = null; fbOnline = false; fbRole = ''; fbReqs = {}; fbMembers = {}; clearTimeout(fbApplyT);
 }
 
@@ -2633,7 +2844,8 @@ function renderHeader() {
   if (multi && document.activeElement !== cs)
     cs.innerHTML = list.map(c => `<option value="${esc(c.code)}" ${c.code === prefs.fb.campaign ? 'selected' : ''}>${esc(c.code === prefs.fb.campaign ? (DB.meta.name || c.name || c.code) : (c.name || c.code))}</option>`).join('')
       + '<option value="__add">＋ Join / create campaign…</option>';
-  $('#meSel').innerHTML = playerOptions(prefs.me, '— who? —') + `<option value="dm" ${prefs.me === 'dm' ? 'selected' : ''}>DM</option>`;
+  $('#meSel').innerHTML = meOptions();
+  renderOnline();
   document.title = (DB.meta.name ? DB.meta.name + ' · ' : '') + 'Group Inventory';
 }
 function showTab(t) {
@@ -2685,15 +2897,11 @@ async function init() {
   }
   const local = loadLocal();
   if (local) DB = local;
-  else if (!prefs.fb.campaign) {
-    // first run: try the starter file next to the page (works when served over http/GitHub Pages)
-    try { const r = await fetch('inventory-data.json', { cache: 'no-store' }); if (r.ok) DB = normalizeDB(await r.json()); } catch (e) { }
-  }
   DB = normalizeDB(DB);
   if (syncLinked() | ensureVocab()) saveLocal();
-  bindInventory(); bindDrawer(); bindLocations(); bindCurrency(); bindSettings(); bindLog(); bindArchive(); bindGate();
+  bindInventory(); bindDrawer(); bindLocations(); bindCurrency(); bindSettings(); bindLog(); bindArchive(); bindGate(); bindRoster();
   $('#tabs').addEventListener('click', e => { const b = e.target.closest('[data-tab]'); if (b) { if (b.dataset.tab === 'loc') openLoc = ''; showTab(b.dataset.tab); } });
-  $('#meSel').addEventListener('change', e => { prefs.me = e.target.value; savePrefs(); if (prefs.tab === 'set') renderSettings(); });
+  $('#meSel').addEventListener('change', e => setMe(e.target.value));
   $('#themeBtn').addEventListener('click', () => { prefs.theme = prefs.theme === 'dark' ? 'light' : 'dark'; savePrefs(); applyTheme(); if (prefs.tab === 'set') renderSettings(); });
   $('#syncBtn').addEventListener('click', () => {
     if (!prefs.fb.campaign) { prefs.setTab = 'sync'; showTab('set'); setTimeout(() => $('#fbCode')?.focus(), 30); toast('Set up live sync first'); }
