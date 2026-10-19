@@ -18,6 +18,8 @@ Versionsnummeret står øverst til højre i appen. Sammenlign det lokalt og på 
 - v2.5.2 · Party Overview: Inventory-gruppen fjernet, værdier centreret, navnerække og label-kolonne står fast ved scroll, Prof/Expert på skills
 - v2.5.3 · Party Overview: skills vises med kasser (outline = prof, guld = expertise) og Abilities & Saves i tre kolonner (Score | Mod | Save)
 - v2.5.4 · Party Overview: XP vises med punktum som tusindtalsseparator (126.389)
+- v2.5.5 · Alle tal i appen vises på dansk: punktum for tusinder og komma for decimaler (6.890 gp, 2,4 lb)
+- v2.5.6 · Party Overview: kortene fylder sidens bredde og siden scroller (navnerækken står fast under fanerne), ens størrelse på prof/expertise-kasser, modifier uden kasse, forklaring uden eksempeltal
 
 ## Filer
 - `index.html` – appen
@@ -59,9 +61,9 @@ Kun tinman4700@gmail.com kan oprette kampagner. Det står både i reglerne og i 
 - Modifier regnes ud fra ability score, og saves udfyldes automatisk (+ prof. bonus når "Prof." er sat). STR er det samme felt som STR under Characters (bæreevne).
 - **Display Options** (foldet sammen): vælg hvilke grupper og hvilke karakterer ("Players here today") der vises. Huskes pr. browser og pr. kampagne.
 - Retired karakterer vises ikke.
-- Kortene har deres egen scroll: navnerækken står fast i toppen og stat-navnene til venstre, når man scroller (som frysning af ruder i Excel).
+- Kortene deler sidens bredde, og man scroller med siden — navnerækken står fast lige under fanerne. Er der flere karakterer, end der er plads til side om side, får tabellen sin egen scroll i stedet, hvor både navnerækken og stat-navnene til venstre står fast.
 - Skills har **— / Prof / Expert**. Valget udfylder bonus = modifier + prof. bonus (×2 ved expertise); vises i oversigten som en kasse: ingen kasse = ikke prof, outline = proficient, guld = expertise.
-- **Abilities & Saves** står i tre kolonner: Score | Mod | Save. Modifier i en lille kasse; en guld save = proficient.
+- **Abilities & Saves** står i tre kolonner: Score | Mod | Save. En guld save = proficient.
 - **Import… / Export** øverst til højre: importér stats fra en party-overview .json-fil. Karakterer matches på navn (også "Victor" ↔ "Victor Baigorri" og "Clarabel" ↔ "Clarabell"); kun stats-felterne skrives, og navne uden match oprettes som nye karakterer. Export giver samme format.
 - Skjul fanen: Settings → Rules & browser → **Party rules** (for alle i kampagnen) eller **This browser** (kun dig).
 

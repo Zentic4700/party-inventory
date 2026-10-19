@@ -224,12 +224,16 @@ details.ovr-opts[open]>summary{margin-bottom:6px}
 .pill input{position:absolute;opacity:0;width:0;height:0}
 .pill:has(input:checked){background:var(--gold2);border-color:var(--gold);color:#2b2118}
 .pill:has(input:focus-visible){outline:2px solid var(--gold);outline-offset:2px}
-.ovr-wrap{overflow:auto;padding:0 8px 8px 0;max-height:calc(100vh - 220px);overscroll-behavior:contain}
-.ovr-cards{display:flex;align-items:flex-start;gap:12px;width:max-content}
-.ovr-card{width:200px;background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--gold2);border-radius:8px;box-shadow:var(--shadow)}
-.ovr-card.lbl{width:170px;background:var(--panel2);border-top-color:var(--line2);position:sticky;left:0;z-index:3}
+.ovr-wrap{padding:0 0 8px}
+.ovr-wrap.scroll{overflow:auto;padding:0 8px 8px 0;overscroll-behavior:contain}
+.ovr-cards{display:flex;align-items:flex-start;gap:10px}
+.ovr-wrap.scroll .ovr-cards{width:max-content}
+.ovr-wrap.scroll .ovr-card:not(.lbl){flex:0 0 190px}
+.ovr-wrap.scroll .ovr-head{top:0}
+.ovr-card{flex:1 1 0;min-width:150px;max-width:280px;background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--gold2);border-radius:8px;box-shadow:var(--shadow)}
+.ovr-card.lbl{flex:0 0 170px;max-width:none;background:var(--panel2);border-top-color:var(--line2);position:sticky;left:0;z-index:3}
 .ovr-head{height:40px;display:flex;align-items:center;justify-content:center;gap:6px;padding:0 8px;border-bottom:1px solid var(--line2);font-family:Cinzel,serif;font-weight:700;
-  position:sticky;top:0;z-index:2;background:var(--panel);border-radius:4px 4px 0 0}
+  position:sticky;top:var(--ovr-top,0px);z-index:2;background:var(--panel);border-radius:4px 4px 0 0}
 .ovr-card.lbl .ovr-head{background:var(--panel2)}
 .ovr-head .nm{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ovr-head button{padding:2px 8px;font-size:12px;font-family:Lora,Georgia,serif}
@@ -239,15 +243,15 @@ details.ovr-opts[open]>summary{margin-bottom:6px}
 .ovr-row.split{padding:0}
 .ovr-sub{height:24px;line-height:24px;display:grid;grid-template-columns:1fr 1fr 1fr;background:var(--bg2);font-size:11px;font-weight:600;color:var(--muted);border-top:1px solid var(--line)}
 .ovr-sub>span{text-align:center}
-.ovsk{display:inline-block;min-width:3.4ch;padding:0 6px;line-height:19px;border-radius:5px;border:1px solid transparent;text-align:right;font-variant-numeric:tabular-nums lining-nums}
+.ovsk{display:inline-block;box-sizing:border-box;width:2.9em;line-height:19px;border-radius:5px;border:1px solid transparent;text-align:center;font-variant-numeric:tabular-nums lining-nums}
 .ovsk.p1{border-color:var(--gold2);background:var(--panel2)}
-.ovsk.p2,.ovsk.sv-demo,.ovab .sv.p{background:var(--gold2);border-color:var(--gold);color:#2b2118;font-weight:700}
-.ovr-top .ovsk{line-height:16px;font-size:12px;min-width:0}
+.ovsk.p2,.ovab .sv.p{background:var(--gold2);border-color:var(--gold);color:#2b2118;font-weight:700}
+.ovr-top .ovsk{line-height:16px;font-size:12px;width:auto;padding:0 6px}
 .ovab{display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;height:100%}
 .ovab>span{text-align:center} .ovab>span+span{border-left:1px dotted var(--line2)}
 .ovab .sc{color:var(--muted);font-size:13px}
-.ovab .md{display:inline-block;min-width:3ch;text-align:center;border:1px solid var(--line2);border-radius:4px;line-height:18px;padding:0 3px;background:var(--panel2);font-weight:700}
-.ovab .sv{display:inline-block;min-width:3.6ch;text-align:right;border-radius:4px;line-height:18px;padding:0 5px;border:1px solid transparent}
+.ovab .md{font-weight:700}
+.ovab .sv{display:inline-block;box-sizing:border-box;width:2.9em;text-align:center;border-radius:5px;line-height:19px;border:1px solid transparent}
 .ovr-card.lbl .ovr-row{font-weight:600;color:var(--muted)}
 .ovr-row.tall{height:46px;line-height:20px;padding:3px 8px;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .ovr-card>.ovr-row:last-child{border-radius:0 0 8px 8px}
@@ -361,7 +365,7 @@ tr.item:hover .qb,.qb:focus{opacity:1}
    Realtime Database (field-level writes, coins/qty as increments).
    ========================================================= */
 const APP_VERSION = 1;          // data format version (not the app build)
-const APP_BUILD = '2.5.4';     // shown top right — bump on every change
+const APP_BUILD = '2.5.6';     // shown top right — bump on every change
 const APP_BUILD_DATE = '2026-10-18';
 const LS_DATA = 'groupInvFb_data_v1';
 const LS_PREFS = 'groupInvFb_prefs_v1';
@@ -640,14 +644,17 @@ function capacityOf(id) {
 }
 
 /* ---------- formatting ---------- */
-function fmtW(w) { if (!w) return '—'; return (+w.toFixed(2)) + ' lb'; }
+/* numbers are shown the Danish way: 1.234,5 (dot for thousands, comma for decimals) */
+const NUM_LOCALE = 'da-DK';
+function fmtN(n, dec = 2) { n = Number(n); return isFinite(n) ? n.toLocaleString(NUM_LOCALE, { maximumFractionDigits: dec }) : ''; }
+function fmtW(w) { if (!w) return '—'; return fmtN(w) + ' lb'; }
 function fmtCp(cp) {
   cp = num(cp); if (!cp) return '—';
-  if (cp >= 100) return (+(cp / 100).toFixed(2)).toLocaleString('en-US') + ' gp';
-  if (cp >= 10 && cp % 10 === 0) return (cp / 10) + ' sp';
-  return cp + ' cp';
+  if (cp >= 100) return fmtN(cp / 100) + ' gp';
+  if (cp >= 10 && cp % 10 === 0) return fmtN(cp / 10) + ' sp';
+  return fmtN(cp) + ' cp';
 }
-function fmtGp(cp) { return (+(num(cp) / 100).toFixed(2)).toLocaleString('en-US') + ' gp'; }
+function fmtGp(cp) { return fmtN(num(cp) / 100) + ' gp'; }
 function fmtTime(t) { if (!t || t < 1000) return ''; const d = new Date(t); return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
 const rarClass = r => 'rar-' + String(r || '').replace(/\s+/g, '-');
 
@@ -737,11 +744,11 @@ function useOne(it) {
   if (ex) {
     it.qty = +(num(it.qty) - 1).toFixed(4); touch(it);
     ex.qty = num(ex.qty) + 1; ex.archived = Object.assign({}, ex.archived, { at: now() }); touch(ex);
-    logItem('archived', ex, { qty: 1, relId: it.id, fromId: it.holderId, text: `used up${who ? ' by ' + holderName(who) : ''} · ${+num(it.qty).toFixed(2)} left at ${holderLabel(it.holderId)}` });
+    logItem('archived', ex, { qty: 1, relId: it.id, fromId: it.holderId, text: `used up${who ? ' by ' + holderName(who) : ''} · ${fmtN(it.qty)} left at ${holderLabel(it.holderId)}` });
   } else archiveItem(it, { qty: 1, reason: 'used', takenBy: who });
   commit();
   if (drawer.mode === 'view' && drawer.id === it.id) { if (getItem(it.id)) renderDrawer(); else closeDrawer(); }
-  toast(`Used 1 × ${it.name}${getItem(it.id) ? ` — ${+num(it.qty).toFixed(2)} left` : ' — that was the last one'}`);
+  toast(`Used 1 × ${it.name}${getItem(it.id) ? ` — ${fmtN(it.qty)} left` : ' — that was the last one'}`);
 }
 function itemBadges(it) {
   let b = '';
@@ -758,7 +765,7 @@ function itemRow(it, cols) {
   const cells = {
     sel: `<td><input type="checkbox" data-sel="${esc(it.id)}" ${sel.has(it.id) ? 'checked' : ''}></td>`,
     name: `<td><div class="ncell"><div class="nmain"><span class="iname">${esc(it.name || '(unnamed)')}</span>${itemBadges(it)}${it.tags ? `<div class="small muted">${esc(it.tags)}</div>` : ''}</div>${isConsumable(it) && num(it.qty) > 0 ? `<button class="usebtn" data-use="${esc(it.id)}" title="Use one — it goes to the archive as used up">use 1</button>` : ''}</div></td>`,
-    qty: `<td class="num qcell c"><span class="qwrap"><button class="qb" data-q="-1" data-id="${esc(it.id)}" title="One less">−</button><span class="qn">${esc(+num(it.qty).toFixed(2))}</span><button class="qb" data-q="1" data-id="${esc(it.id)}" title="One more">+</button></span></td>`,
+    qty: `<td class="num qcell c"><span class="qwrap"><button class="qb" data-q="-1" data-id="${esc(it.id)}" title="One less">−</button><span class="qn">${esc(fmtN(it.qty))}</span><button class="qb" data-q="1" data-id="${esc(it.id)}" title="One more">+</button></span></td>`,
     wEach: `<td class="num muted c">${fmtW(num(it.weightEach))}</td>`,
     weight: `<td class="num c">${fmtW(itemWeight(it))}</td>`,
     value: `<td class="num c" title="${it.valueCp ? 'each ' + fmtCp(it.valueCp) : ''}">${fmtCp(itemValue(it))}</td>`,
@@ -796,7 +803,7 @@ function itemsTable(list, cols, opts = {}) {
     });
   } else body = list.map(it => itemRow(it, cols)).join('');
   const tw = list.reduce((s, i) => s + itemWeight(i), 0), tv = list.reduce((s, i) => s + itemValue(i), 0);
-  const foot = list.length ? `<tfoot><tr>${cols.map(c => c === 'name' ? `<td>${list.length} item${list.length === 1 ? '' : 's'}</td>` : c === 'weight' ? `<td class="num c">${fmtW(tw)}</td>` : c === 'value' ? `<td class="num c">${fmtCp(tv)}</td>` : c === 'qty' ? `<td class="num qcell c"><span class="qwrap"><span></span><span class="qn">${+list.reduce((s, i) => s + num(i.qty), 0).toFixed(2)}</span><span></span></span></td>` : '<td></td>').join('')}</tr></tfoot>` : '';
+  const foot = list.length ? `<tfoot><tr>${cols.map(c => c === 'name' ? `<td>${list.length} item${list.length === 1 ? '' : 's'}</td>` : c === 'weight' ? `<td class="num c">${fmtW(tw)}</td>` : c === 'value' ? `<td class="num c">${fmtCp(tv)}</td>` : c === 'qty' ? `<td class="num qcell c"><span class="qwrap"><span></span><span class="qn">${fmtN(list.reduce((s, i) => s + num(i.qty), 0))}</span><span></span></span></td>` : '<td></td>').join('')}</tr></tfoot>` : '';
   // fixed column widths so nothing shifts when a number changes
   const colg = '<colgroup>' + cols.map(c => `<col${COL_W[c] ? ` style="width:${COL_W[c]}"` : ''}>`).join('') + '</colgroup>';
   return `<div class="tablewrap"><table class="itable">${colg}<thead><tr>${head}</tr></thead><tbody>${body}</tbody>${foot}</table></div>`;
@@ -1023,7 +1030,7 @@ function renderView(it) {
     ${sub ? `<div class="vsub">${sub}</div>` : ''}
     <div>${itemBadges(it)}</div>
     <dl class="vlist">
-      ${row('Quantity', `<span class="qtyctl"><button class="small" data-dr="q-" title="One less (a correction — use “Use 1” when it's consumed)">−</button><input id="vQty" type="number" min="0" step="any" value="${esc(+num(it.qty).toFixed(2))}"><button class="small" data-dr="q+" title="One more">+</button></span>${num(it.qty) > 0 ? ` <button class="small${isConsumable(it) ? ' gold' : ''}" data-dr="use" title="Consumed — goes to the archive as used up">Use 1</button>` : ''}`)}
+      ${row('Quantity', `<span class="qtyctl"><button class="small" data-dr="q-" title="One less (a correction — use “Use 1” when it's consumed)">−</button><input id="vQty" type="number" min="0" step="any" value="${esc(+num(it.qty).toFixed(4))}"><button class="small" data-dr="q+" title="One more">+</button></span>${num(it.qty) > 0 ? ` <button class="small${isConsumable(it) ? ' gold' : ''}" data-dr="use" title="Consumed — goes to the archive as used up">Use 1</button>` : ''}`)}
       ${row('Weight', num(it.weightEach) ? each(itemWeight(it), num(it.weightEach), fmtW) : '—')}
       ${row('Value', num(it.valueCp) ? each(itemValue(it), num(it.valueCp), fmtCp) : '—')}
       ${row('Carried by', esc(holderLabel(it.holderId)))}
@@ -1033,7 +1040,7 @@ function renderView(it) {
       ${row('Source', esc(it.source || ''))}
     </dl>
     ${lk ? `<div class="sect"><h4>▣ Contents · ${holderCount(lk.id)} item(s) · ${fmtW(holderContentsWeight(lk.id))}${lk.weightless ? ' (weightless)' : ''}</h4>
-      ${contents.length || subs.length ? `<ul class="vcont">${subs.map(x => `<li>${LOC_ICON[x.kind] || ''} ${esc(x.name)}</li>`).join('')}${contents.map(x => `<li><a data-goitem="${esc(x.id)}">${esc(x.name)}</a>${num(x.qty) !== 1 ? ' × ' + esc(+num(x.qty).toFixed(2)) : ''}</li>`).join('')}</ul>` : '<p class="muted small">Empty.</p>'}
+      ${contents.length || subs.length ? `<ul class="vcont">${subs.map(x => `<li>${LOC_ICON[x.kind] || ''} ${esc(x.name)}</li>`).join('')}${contents.map(x => `<li><a data-goitem="${esc(x.id)}">${esc(x.name)}</a>${num(x.qty) !== 1 ? ' × ' + esc(fmtN(x.qty)) : ''}</li>`).join('')}</ul>` : '<p class="muted small">Empty.</p>'}
       <div class="toolbar"><button class="small" data-dr="addInto">+ Put an item in it</button><button class="small" data-dr="openCont">Open container view</button></div></div>` : ''}
     <div class="sect"><h4>Description</h4><div class="desc">${it.desc ? esc(it.desc) : '<span class="muted">No description.</span>'}</div></div>
     ${it.notes ? `<div class="sect"><h4>Group notes</h4><div class="desc">${esc(it.notes)}</div></div>` : ''}
@@ -1260,7 +1267,7 @@ function bindDrawer() {
         if (o.qty <= 0) { $('#arQty', d)?.focus(); return; }
         const rec = archiveItem(it, o); commit();
         if (getItem(it.id)) renderDrawer(); else closeDrawer();
-        toast(`${+num(rec.qty).toFixed(2)} × ${rec.name} archived — ${arcPhrase(rec.archived)}`); break;
+        toast(`${fmtN(rec.qty)} × ${rec.name} archived — ${arcPhrase(rec.archived)}`); break;
       }
       case 'reactivate': {
         if (!drawer.arc) return;
@@ -1360,7 +1367,7 @@ function archiveItem(it, o = {}) {
   rec.holderId = ARCHIVE_ID; rec.archived = info; touch(rec);
   DB.archive.push(rec);
   logItem('archived', rec, { qty: q, relId: info.srcId || '', fromId: info.fromId, note: info.note,
-    text: `${arcPhrase(info)} · from ${info.fromName || 'Unassigned'}${info.srcId ? ` (${+num(it.qty).toFixed(2)} left there)` : ''}${extra}` });
+    text: `${arcPhrase(info)} · from ${info.fromName || 'Unassigned'}${info.srcId ? ` (${fmtN(it.qty)} left there)` : ''}${extra}` });
   return rec;
 }
 
@@ -1408,7 +1415,7 @@ function itemHistory(it) {
 function historyBlock(it) {
   const h = itemHistory(it); if (!h.length) return '';
   return `<details class="sect hist"><summary><h4>History · ${h.length}</h4></summary><ul class="hlist">${h.slice(0, 60).map(e =>
-    `<li><span class="small muted">${esc(fmtTime(e.ts))}${e.by ? ' · ' + esc(e.by) : ''}</span> <span class="lgt lg-${esc(e.action)}">${esc(LOG_TYPES[e.action] || e.action)}</span> ${esc(logDetail(e))}${e.qty && e.qty !== 1 && e.action !== 'edited' ? ` <span class="muted">× ${esc(+num(e.qty).toFixed(2))}</span>` : ''}${e.note ? ` <i class="small">— ${esc(e.note)}</i>` : ''}</li>`).join('')}</ul></details>`;
+    `<li><span class="small muted">${esc(fmtTime(e.ts))}${e.by ? ' · ' + esc(e.by) : ''}</span> <span class="lgt lg-${esc(e.action)}">${esc(LOG_TYPES[e.action] || e.action)}</span> ${esc(logDetail(e))}${e.qty && e.qty !== 1 && e.action !== 'edited' ? ` <span class="muted">× ${esc(fmtN(e.qty))}</span>` : ''}${e.note ? ` <i class="small">— ${esc(e.note)}</i>` : ''}</li>`).join('')}</ul></details>`;
 }
 
 /* the "Archive" fold-out on an active item's card */
@@ -1443,7 +1450,7 @@ function renderArcView(it) {
   <div class="view">
     ${sub ? `<div class="vsub">${sub}</div>` : ''}
     <dl class="vlist">
-      ${row('Quantity', esc(+num(it.qty).toFixed(2)))}
+      ${row('Quantity', esc(fmtN(it.qty)))}
       ${row('Value', num(it.valueCp) ? fmtCp(itemValue(it)) : '—')}
       ${row('Reason', `<select id="axReason">${Object.entries(ARC_REASONS).map(([k, l]) => `<option value="${k}" ${k === a.reason ? 'selected' : ''}>${l}</option>`).join('')}</select>`)}
       ${row('Who', `<select id="axWho">${playerOptions(a.takenBy, '— nobody —')}</select>`)}
@@ -1451,10 +1458,10 @@ function renderArcView(it) {
       ${row('Came from', esc(a.fromName || 'Unassigned') + (a.withId ? ` <span class="muted">(inside ${esc(getArc(a.withId)?.name || 'a container')})</span>` : ''))}
       ${row('Note', `<input id="axNote" value="${esc(a.note || '')}" placeholder="—" style="width:100%">`)}
     </dl>
-    ${withItems.length ? `<div class="sect"><h4>▣ Archived with ${withItems.length} item(s) inside</h4><ul class="vcont">${withItems.map(x => `<li><a data-goitem="${esc(x.id)}">${esc(x.name)}</a>${num(x.qty) !== 1 ? ' × ' + esc(+num(x.qty).toFixed(2)) : ''}</li>`).join('')}</ul></div>` : ''}
+    ${withItems.length ? `<div class="sect"><h4>▣ Archived with ${withItems.length} item(s) inside</h4><ul class="vcont">${withItems.map(x => `<li><a data-goitem="${esc(x.id)}">${esc(x.name)}</a>${num(x.qty) !== 1 ? ' × ' + esc(fmtN(x.qty)) : ''}</li>`).join('')}</ul></div>` : ''}
     <div class="sect" id="arcBack"><h4>↩ Reactivate</h4>
       <div class="toolbar">Return to <select id="axDest" style="flex:1;min-width:0">${holderOptions(dest)}</select><button class="gold" data-dr="reactivate">Reactivate</button></div>
-      <p class="small muted" id="axHint">${src ? `The other ${esc(+num(src.qty).toFixed(2))} are at ${esc(holderLabel(src.holderId))} — returning it there adds it back onto that stack.` : 'It comes back as the same item, with its notes, charges and history.'}</p></div>
+      <p class="small muted" id="axHint">${src ? `The other ${esc(fmtN(src.qty))} are at ${esc(holderLabel(src.holderId))} — returning it there adds it back onto that stack.` : 'It comes back as the same item, with its notes, charges and history.'}</p></div>
     <div class="sect"><h4>Description</h4><div class="desc">${it.desc ? esc(it.desc) : '<span class="muted">No description.</span>'}</div></div>
     ${it.notes ? `<div class="sect"><h4>Group notes</h4><div class="desc">${esc(it.notes)}</div></div>` : ''}
     ${historyBlock(it)}
@@ -1487,7 +1494,7 @@ function renderArchive() {
   <div class="tablewrap"><table class="itable arct"><thead><tr><th class="nosort">Name</th><th class="nosort c">Quantity</th><th class="nosort c">Value</th><th class="nosort">Reason</th><th class="nosort">Who</th><th class="nosort">Came from</th><th class="nosort">Archived</th><th class="nosort">Note</th><th class="nosort"></th></tr></thead>
   <tbody>${list.length ? list.map(it => { const a = it.archived || {}; return `<tr class="item" data-arc="${esc(it.id)}">
     <td><span class="iname">${esc(it.name || '(unnamed)')}</span>${it.magical ? '<span class="badge b-magic">✦ magic</span>' : ''}${a.withId ? `<div class="small muted">↳ inside ${esc(getArc(a.withId)?.name || 'a container')}</div>` : ''}${a.locs && a.locs.length && !a.withId ? `<span class="badge" style="color:var(--gold)">▣</span>` : ''}</td>
-    <td class="num c">${esc(+num(it.qty).toFixed(2))}</td><td class="num c">${fmtCp(itemValue(it))}</td>
+    <td class="num c">${esc(fmtN(it.qty))}</td><td class="num c">${fmtCp(itemValue(it))}</td>
     <td class="small">${esc(ARC_REASONS[a.reason] || '')}</td><td class="small">${esc(a.takenBy ? holderName(a.takenBy) : '')}</td>
     <td class="small">${esc(a.fromName || '')}</td><td class="small nowrap">${esc(fmtTime(a.at))}${a.by ? `<div class="muted">${esc(a.by)}</div>` : ''}</td>
     <td class="small"><i>${esc(a.note || '')}</i></td>
@@ -1524,7 +1531,7 @@ function bindArchive() {
     else if (el.id === 'axNote') a.note = el.value.trim();
     else if (el.id === 'axDest') {
       const src = a.srcId && getItem(a.srcId), h = $('#axHint');
-      if (h && src) h.textContent = src.holderId === el.value ? `Adds back onto the stack of ${+num(src.qty).toFixed(2)} at ${holderLabel(src.holderId)}.` : `Comes back as its own stack (the other ${+num(src.qty).toFixed(2)} are at ${holderLabel(src.holderId)}).`;
+      if (h && src) h.textContent = src.holderId === el.value ? `Adds back onto the stack of ${fmtN(src.qty)} at ${holderLabel(src.holderId)}.` : `Comes back as its own stack (the other ${fmtN(src.qty)} are at ${holderLabel(src.holderId)}).`;
       return;
     } else return;
     it.archived = Object.assign({}, a); touch(it); commit({ keep: [] });
@@ -1600,7 +1607,7 @@ function containerView(id) {
       ${l && l.weightless ? '<span class="muted small">Contents don\'t burden whoever carries it</span>' : ''}</div>
     ${capBar(load, cap)}
     <div class="hcoins coins"><b>Coins</b>${COINS.map(c => `<label><span class="coin-h c-${c}">${c}</span><input type="number" min="0" step="1" data-hpurse="${esc(id)}" data-coin="${c}" value="${coins ? int(coins[c]) : 0}"></label>`).join('')}
-      <span class="small muted">${coins && coinCount(coins) ? `${coinCount(coins).toLocaleString('en-US')} coins · ${DB.meta.coinWeight ? fmtW(coinWeight(coins)) + ' (in the weight above)' : 'weight not counted (Settings)'} · worth ${fmtGp(coinValue(coins))}` : `${num(DB.meta.coinsPerLb, 50)} coins = 1 lb — weight is added automatically`}</span></div>
+      <span class="small muted">${coins && coinCount(coins) ? `${fmtN(coinCount(coins))} coins · ${DB.meta.coinWeight ? fmtW(coinWeight(coins)) + ' (in the weight above)' : 'weight not counted (Settings)'} · worth ${fmtGp(coinValue(coins))}` : `${num(DB.meta.coinsPerLb, 50)} coins = 1 lb — weight is added automatically`}</span></div>
     ${(p || l).notes ? `<div class="desc" style="margin-top:8px">${esc((p || l).notes)}</div>` : ''}
   </div>`;
   const subHtml = subs.length ? `<h3 class="cinzel" style="margin:4px 0 8px;color:var(--gold)">Containers inside</h3><div class="cards" style="margin-bottom:14px">${subs.map(s => holderCard(s.id)).join('')}</div>` : '';
@@ -1659,7 +1666,7 @@ function purseRows() {
   const ids = ['party', ...purseChars().map(p => p.id), ...sortedLocs().filter(l => purseOf(l.id)).map(l => l.id)];
   return ids;
 }
-function coinStr(o) { return COINS.filter(c => int(o[c])).map(c => `${int(o[c])} ${c}`).join(', ') || '0'; }
+function coinStr(o) { return COINS.filter(c => int(o[c])).map(c => `${fmtN(int(o[c]))} ${c}`).join(', ') || '0'; }
 
 function renderCurrency() {
   const ids = purseRows();
@@ -1677,7 +1684,7 @@ function renderCurrency() {
       return `<tr><td><b>${esc(holderName(id))}</b></td>${COINS.map(c => `<td class="right"><input type="number" step="1" data-purse="${esc(id)}" data-coin="${c}" value="${int(p[c])}"></td>`).join('')}
         <td class="num"><b>${fmtGp(coinValue(p))}</b></td><td class="num muted">${fmtW(coinCount(p) / (num(DB.meta.coinsPerLb, 50) || 50))}</td></tr>`;
     }).join('')}</tbody>
-    <tfoot><tr><td>Total</td>${COINS.map(c => `<td class="num">${tot[c].toLocaleString('en-US')}</td>`).join('')}<td class="num">${fmtGp(totalCoins)}</td><td></td></tr></tfoot></table></div>
+    <tfoot><tr><td>Total</td>${COINS.map(c => `<td class="num">${fmtN(tot[c])}</td>`).join('')}<td class="num">${fmtGp(totalCoins)}</td><td></td></tr></tfoot></table></div>
     ${locNoPurse.length ? `<div class="toolbar" style="margin-top:8px"><span class="small muted">Add a purse for a location (bank, chest…)</span><select id="newPurse">${locNoPurse.map(l => `<option value="${esc(l.id)}">${esc(holderLabel(l.id))}</option>`).join('')}</select><button data-cur="addPurse">Add</button></div>` : ''}
     <p class="small muted">Edit a number directly to correct a purse, or use a transaction below so it's logged. Coin weight: ${num(DB.meta.coinsPerLb, 50)} coins = 1 lb${DB.meta.coinWeight ? ' (counted in carried load)' : ' (not counted)'}.</p>
   </div>
@@ -2191,8 +2198,8 @@ const OV_GROUPS = [
     ['Age', p => ovVal(p.age)],
     ['Alignment', p => ovVal(p.alignment)],
     ['Spell / save DC', p => ovVal(p.spellDc)],
-    ['Experience points', p => ovBlank(p.xp) ? '—' : Number(p.xp).toLocaleString('da-DK')],
-    ['XP for next level', p => ovBlank(p.xpNext) ? '—' : Number(p.xpNext).toLocaleString('da-DK')]] },
+    ['Experience points', p => ovBlank(p.xp) ? '—' : fmtN(p.xp, 0)],
+    ['XP for next level', p => ovBlank(p.xpNext) ? '—' : fmtN(p.xpNext, 0)]] },
   { key: 'passives', label: 'Passive Scores', rows: [
     ['Passive Perception', p => ovVal(p.passivePerception)],
     ['Passive Investigation', p => ovVal(p.passiveInvestigation)],
@@ -2217,7 +2224,7 @@ function renderOverview() {
   const top = `<div class="ovr-top"><h2>Party Overview</h2><div class="seg">
       <button data-ovmode="view" class="${mode === 'view' ? 'on' : ''}">Overview</button>
       <button data-ovmode="edit" class="${mode === 'edit' ? 'on' : ''}">Edit</button></div>
-    <span class="small muted">${mode === 'view' ? 'Active characters only · skills: <span class="ovsk">+2</span> <span class="ovsk p1">proficient</span> <span class="ovsk p2">expertise</span> · <span class="ovsk sv-demo">+9</span> proficient save' : 'Changes are saved as soon as you leave a field.'}</span>
+    <span class="small muted">${mode === 'view' ? 'Active characters only · <span class="ovsk p1">proficient</span> <span class="ovsk p2">expertise</span>' : 'Changes are saved as soon as you leave a field.'}</span>
     <span class="spacer"></span>
     <label class="small"><button data-ovio="import" title="Fill in stats from a party-overview .json file — characters are matched by name">Import…</button><input type="file" id="ovFile" accept=".json,application/json" class="hidden"></label>
     <button data-ovio="export" title="Download the stats of the active characters as a .json file">Export</button></div>`;
@@ -2231,8 +2238,16 @@ function renderOverview() {
    stay frozen while scrolling — like frozen panes in Excel */
 function ovFit() {
   const w = $('#tab-ovr .ovr-wrap'); if (!w || $('#tab-ovr').classList.contains('hidden')) return;
-  const top = w.getBoundingClientRect().top + window.scrollY;
-  w.style.maxHeight = Math.max(320, window.innerHeight - top - 14) + 'px';
+  // normally the cards share the page width and the page scrolls; the name row sticks just below the app header
+  document.documentElement.style.setProperty('--ovr-top', ($('header')?.offsetHeight || 0) + 'px');
+  w.classList.remove('scroll'); w.style.maxHeight = '';
+  const row = w.querySelector('.ovr-cards');
+  if (row && row.scrollWidth > w.clientWidth + 1) {
+    // too many characters to fit side by side: fall back to a scroll box with frozen names and labels
+    w.classList.add('scroll');
+    const top = w.getBoundingClientRect().top + window.scrollY;
+    w.style.maxHeight = Math.max(320, window.innerHeight - top - 14) + 'px';
+  }
 }
 window.addEventListener('resize', () => ovFit());
 
@@ -2478,7 +2493,7 @@ function renderLog() {
 }
 function logRow(e) {
   const it = e.itemId && (getItem(e.itemId) || getArc(e.itemId));
-  const item = e.itemName ? (it ? `<a class="lglink" data-goitem="${esc(e.itemId)}">${esc(e.itemName)}</a>` : esc(e.itemName)) + (e.qty && e.qty !== 1 && e.action !== 'edited' ? ` <span class="muted">× ${esc(+num(e.qty).toFixed(2))}</span>` : '') : '';
+  const item = e.itemName ? (it ? `<a class="lglink" data-goitem="${esc(e.itemId)}">${esc(e.itemName)}</a>` : esc(e.itemName)) + (e.qty && e.qty !== 1 && e.action !== 'edited' ? ` <span class="muted">× ${esc(fmtN(e.qty))}</span>` : '') : '';
   return `<tr data-logid="${esc(e.id)}">
     <td class="nowrap small">${esc(fmtTime(e.ts))}</td><td class="small">${esc(e.gameDate || '')}</td><td class="small">${esc(e.by || '')}</td>
     <td><span class="lgt lg-${esc(e.action)}">${esc(LOG_TYPES[e.action] || e.action)}</span></td>
