@@ -365,7 +365,7 @@ tr.item:hover .qb,.qb:focus{opacity:1}
    Realtime Database (field-level writes, coins/qty as increments).
    ========================================================= */
 const APP_VERSION = 1;          // data format version (not the app build)
-const APP_BUILD = '2.5.6';     // shown top right — bump on every change
+const APP_BUILD = '2.5.8';     // shown top right — bump on every change
 const APP_BUILD_DATE = '2026-10-18';
 const LS_DATA = 'groupInvFb_data_v1';
 const LS_PREFS = 'groupInvFb_prefs_v1';
@@ -2224,7 +2224,7 @@ function renderOverview() {
   const top = `<div class="ovr-top"><h2>Party Overview</h2><div class="seg">
       <button data-ovmode="view" class="${mode === 'view' ? 'on' : ''}">Overview</button>
       <button data-ovmode="edit" class="${mode === 'edit' ? 'on' : ''}">Edit</button></div>
-    <span class="small muted">${mode === 'view' ? 'Active characters only · <span class="ovsk p1">proficient</span> <span class="ovsk p2">expertise</span>' : 'Changes are saved as soon as you leave a field.'}</span>
+    <span class="small muted">${mode === 'view' ? 'Active characters only · Saves: <span class="ovsk p2">proficient</span> · Skills: <span class="ovsk p1">proficient</span> <span class="ovsk p2">expertise</span>' : 'Changes are saved as soon as you leave a field.'}</span>
     <span class="spacer"></span>
     <label class="small"><button data-ovio="import" title="Fill in stats from a party-overview .json file — characters are matched by name">Import…</button><input type="file" id="ovFile" accept=".json,application/json" class="hidden"></label>
     <button data-ovio="export" title="Download the stats of the active characters as a .json file">Export</button></div>`;
@@ -2238,8 +2238,7 @@ function renderOverview() {
    stay frozen while scrolling — like frozen panes in Excel */
 function ovFit() {
   const w = $('#tab-ovr .ovr-wrap'); if (!w || $('#tab-ovr').classList.contains('hidden')) return;
-  // normally the cards share the page width and the page scrolls; the name row sticks just below the app header
-  document.documentElement.style.setProperty('--ovr-top', ($('header')?.offsetHeight || 0) + 'px');
+  // normally the cards share the page width and the page scrolls; the name row sticks just below the app header (see ovTrackHeader)
   w.classList.remove('scroll'); w.style.maxHeight = '';
   const row = w.querySelector('.ovr-cards');
   if (row && row.scrollWidth > w.clientWidth + 1) {
@@ -2358,7 +2357,18 @@ function ovExport() {
   a.download = 'party-overview-' + vslug(DB.meta.name || 'party') + '.json'; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
+/* the name row sticks right under the app header. The header's height changes after load (fonts, live-sync status,
+   who-is-online icons, a wrapping campaign dropdown…), so follow it instead of measuring it once. */
+function ovTrackHeader() {
+  const hdr = $('header'); if (!hdr) return;
+  const set = () => document.documentElement.style.setProperty('--ovr-top', Math.ceil(hdr.getBoundingClientRect().height) + 'px');
+  set();
+  if (window.ResizeObserver) new ResizeObserver(set).observe(hdr);
+  window.addEventListener('resize', set); window.addEventListener('load', set);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(set);
+}
 function bindOverview() {
+  ovTrackHeader();
   const root = $('#tab-ovr');
   root.addEventListener('change', e => {
     const t = e.target, o = ovOpts();
